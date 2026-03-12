@@ -43,10 +43,12 @@ import {
   Clock,
   ShieldCheck,
   Star,
-  ClipboardList
+  ClipboardList,
+  UploadCloud,
+  Key
 } from 'lucide-react';
 
-type Page = 'home' | 'features' | 'pricing';
+type Page = 'home' | 'features' | 'pricing' | 'download' | 'login' | 'register' | 'profile' | 'activate' | 'admin';
 
 // 轮播图图片 - 使用中文文件名
 const galleryImages = [
@@ -592,6 +594,406 @@ export default function App() {
             </section>
           </PageWrapper>
         );
+
+      case 'download':
+        return (
+          <PageWrapper>
+            <section className="pt-32 pb-24 px-6">
+              <div className="max-w-4xl mx-auto text-center">
+                <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">
+                  下载星空AI
+                </h1>
+                <p className="text-lg text-white/60 mb-12">
+                  专为门店打造的智能经营助手，让管理更简单
+                </p>
+
+                <div className="grid md:grid-cols-2 gap-8 mb-12">
+                  <div className="glass rounded-2xl p-8">
+                    <Monitor className="w-16 h-16 mx-auto mb-4 text-brand-400" />
+                    <h3 className="text-xl font-semibold mb-2">Windows 版本</h3>
+                    <p className="text-white/50 text-sm mb-6">适用于 Windows 10/11 系统</p>
+                    <TechButton primary onClick={() => {}}>
+                      <Download className="w-4 h-4 mr-2" />
+                      下载安装版
+                    </TechButton>
+                  </div>
+                  <div className="glass rounded-2xl p-8">
+                    <Zap className="w-16 h-16 mx-auto mb-4 text-brand-400" />
+                    <h3 className="text-xl font-semibold mb-2">Windows 便携版</h3>
+                    <p className="text-white/50 text-sm mb-6">无需安装，插上U盘随时使用</p>
+                    <TechButton onClick={() => {}}>
+                      <Download className="w-4 h-4 mr-2" />
+                      下载便携版
+                    </TechButton>
+                  </div>
+                </div>
+
+                <div className="glass rounded-2xl p-6 max-w-md mx-auto">
+                  <div className="flex items-center justify-center gap-2 text-white/50 text-sm mb-4">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>安全无病毒，请放心使用</span>
+                  </div>
+                  <p className="text-xs text-white/30">
+                    版本：1.0.0 | 大小：约 240MB
+                  </p>
+                </div>
+              </div>
+            </section>
+          </PageWrapper>
+        );
+
+      case 'login':
+        return (
+          <PageWrapper>
+            <section className="pt-32 pb-24 px-6">
+              <div className="max-w-md mx-auto">
+                <div className="glass rounded-2xl p-8">
+                  <h2 className="text-2xl font-bold text-center mb-8">登录</h2>
+                  <p className="text-white/50 text-center mb-6">使用手机号登录</p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-white/50 mb-1">手机号</label>
+                      <input
+                        type="tel"
+                        className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                        placeholder="请输入手机号"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-white/50 mb-1">验证码</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          className="flex-1 rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                          placeholder="请输入验证码"
+                        />
+                        <button className="px-4 py-2 rounded-lg bg-white/10 text-sm hover:bg-white/20 transition-colors">
+                          获取验证码
+                        </button>
+                      </div>
+                    </div>
+                    <TechButton primary className="w-full justify-center">
+                      登录
+                    </TechButton>
+                    <p className="text-center text-sm text-white/50">
+                      还没有账号？ 
+                      <button onClick={() => setCurrentPage('register')} className="text-brand-400 hover:underline">
+                        立即注册
+                      </button>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </PageWrapper>
+        );
+
+      case 'register':
+        return (
+          <PageWrapper>
+            <section className="pt-32 pb-24 px-6">
+              <div className="max-w-md mx-auto">
+                <div className="glass rounded-2xl p-8">
+                  <h2 className="text-2xl font-bold text-center mb-8">注册</h2>
+                  <p className="text-white/50 text-center mb-6">手机号注册</p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-white/50 mb-1">手机号</label>
+                      <input
+                        type="tel"
+                        className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                        placeholder="请输入手机号"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-white/50 mb-1">验证码</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          className="flex-1 rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                          placeholder="请输入验证码"
+                        />
+                        <button className="px-4 py-2 rounded-lg bg-white/10 text-sm hover:bg-white/20 transition-colors">
+                          获取验证码
+                        </button>
+                      </div>
+                    </div>
+                    <TechButton primary className="w-full justify-center">
+                      注册
+                    </TechButton>
+                    <p className="text-center text-sm text-white/50">
+                      已有账号？ 
+                      <button onClick={() => setCurrentPage('login')} className="text-brand-400 hover:underline">
+                        立即登录
+                      </button>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </PageWrapper>
+        );
+
+      case 'profile':
+        return (
+          <PageWrapper>
+            <section className="pt-32 pb-24 px-6">
+              <div className="max-w-4xl mx-auto">
+                <h1 className="text-3xl font-bold mb-8">个人中心</h1>
+                <div className="grid md:grid-cols-3 gap-8">
+                  <div className="md:col-span-1">
+                    <div className="glass rounded-2xl p-6">
+                      <div className="text-center">
+                        <div className="w-20 h-20 rounded-full bg-brand-500/20 flex items-center justify-center mx-auto mb-4">
+                          <Users className="w-10 h-10 text-brand-400" />
+                        </div>
+                        <h3 className="font-semibold mb-1">用户</h3>
+                        <p className="text-white/50 text-sm">138****8888</p>
+                      </div>
+                      <div className="mt-6 space-y-2">
+                        <button className="w-full text-left px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm">
+                          我的订单
+                        </button>
+                        <button className="w-full text-left px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm">
+                          激活码
+                        </button>
+                        <button className="w-full text-left px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm">
+                          账户设置
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="md:col-span-2">
+                    <div className="glass rounded-2xl p-6 mb-6">
+                      <h3 className="font-semibold mb-4">我的订单</h3>
+                      <p className="text-white/50 text-sm">暂无订单</p>
+                    </div>
+                    <div className="glass rounded-2xl p-6">
+                      <h3 className="font-semibold mb-4">我的激活码</h3>
+                      <p className="text-white/50 text-sm">暂无激活码</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </PageWrapper>
+        );
+
+      case 'activate':
+        return (
+          <PageWrapper>
+            <section className="pt-32 pb-24 px-6">
+              <div className="max-w-2xl mx-auto">
+                <div className="glass rounded-2xl p-8">
+                  <div className="text-center mb-8">
+                    <ShieldCheck className="w-16 h-16 mx-auto mb-4 text-brand-400" />
+                    <h2 className="text-2xl font-bold mb-2">激活您的账户</h2>
+                    <p className="text-white/50">请完成以下步骤来激活您的星空AI账户</p>
+                  </div>
+
+                  {/* 步骤1：登录 */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="w-6 h-6 rounded-full bg-brand-500 text-white text-sm flex items-center justify-center">1</span>
+                      <span className="font-medium">登录账户</span>
+                    </div>
+                    <div className="pl-8 space-y-4">
+                      <div>
+                        <label className="block text-xs text-white/50 mb-1">手机号</label>
+                        <input
+                          type="tel"
+                          className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                          placeholder="请输入手机号"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-white/50 mb-1">验证码</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            className="flex-1 rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                            placeholder="请输入验证码"
+                          />
+                          <button className="px-4 py-2 rounded-lg bg-white/10 text-sm hover:bg-white/20 transition-colors">
+                            获取验证码
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 步骤2：设置密码 */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="w-6 h-6 rounded-full bg-brand-500 text-white text-sm flex items-center justify-center">2</span>
+                      <span className="font-medium">设置密码</span>
+                    </div>
+                    <div className="pl-8 space-y-4">
+                      <div>
+                        <label className="block text-xs text-white/50 mb-1">设置登录密码</label>
+                        <input
+                          type="password"
+                          className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                          placeholder="请设置密码"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-white/50 mb-1">确认密码</label>
+                        <input
+                          type="password"
+                          className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                          placeholder="请确认密码"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 步骤3：输入激活码 */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="w-6 h-6 rounded-full bg-brand-500 text-white text-sm flex items-center justify-center">3</span>
+                      <span className="font-medium">输入激活码</span>
+                    </div>
+                    <div className="pl-8">
+                      <input
+                        type="text"
+                        className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-sm outline-none focus:border-brand-500 text-center text-lg font-mono"
+                        placeholder="请输入激活码，如：S001-VIP3-12M-XXXX"
+                      />
+                      <p className="text-xs text-white/30 mt-2">激活码由销售提供</p>
+                    </div>
+                  </div>
+
+                  {/* 步骤4：上传营业执照 */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="w-6 h-6 rounded-full bg-brand-500 text-white text-sm flex items-center justify-center">4</span>
+                      <span className="font-medium">上传营业执照（可选）</span>
+                    </div>
+                    <div className="pl-8">
+                      <div className="border-2 border-dashed border-white/10 rounded-xl p-8 text-center hover:border-brand-500/50 transition-colors cursor-pointer">
+                        <UploadCloud className="w-10 h-10 mx-auto mb-2 text-white/30" />
+                        <p className="text-sm text-white/50">点击或拖拽文件到此处上传</p>
+                        <p className="text-xs text-white/30 mt-1">支持 JPG、PNG 格式</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <TechButton primary className="w-full justify-center">
+                    立即激活
+                  </TechButton>
+                </div>
+              </div>
+            </section>
+          </PageWrapper>
+        );
+
+      case 'admin':
+        return (
+          <PageWrapper>
+            <section className="pt-24 pb-24 px-6">
+              <div className="max-w-6xl mx-auto">
+                <div className="flex items-center justify-between mb-8">
+                  <h1 className="text-3xl font-bold">管理后台</h1>
+                  <button 
+                    onClick={() => setCurrentPage('home')}
+                    className="text-sm text-white/50 hover:text-white"
+                  >
+                    返回首页
+                  </button>
+                </div>
+
+                <div className="grid md:grid-cols-4 gap-6 mb-8">
+                  {[
+                    { icon: FileText, label: '内容管理', desc: '修改首页文字图片' },
+                    { icon: CreditCard, label: '套餐管理', desc: '添加/修改套餐' },
+                    { icon: Key, label: '激活码', desc: '生成/查看激活码' },
+                    { icon: Receipt, label: '订单管理', desc: '查看处理订单' },
+                  ].map((item, i) => (
+                    <div key={i} className="glass rounded-2xl p-6 hover:border-brand-500/30 border border-transparent transition-colors cursor-pointer">
+                      <item.icon className="w-10 h-10 text-brand-400 mb-4" />
+                      <h3 className="font-semibold mb-1">{item.label}</h3>
+                      <p className="text-white/50 text-sm">{item.desc}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-6">
+                  {[
+                    { icon: Users, label: '用户管理', desc: '查看激活用户' },
+                    { icon: Store, label: '销售管理', desc: '添加销售查看业绩' },
+                    { icon: BarChart3, label: '数据统计', desc: '销售业绩统计' },
+                  ].map((item, i) => (
+                    <div key={i} className="glass rounded-2xl p-6 hover:border-brand-500/30 border border-transparent transition-colors cursor-pointer">
+                      <item.icon className="w-10 h-10 text-brand-400 mb-4" />
+                      <h3 className="font-semibold mb-1">{item.label}</h3>
+                      <p className="text-white/50 text-sm">{item.desc}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 模拟激活码管理界面 */}
+                <div className="mt-12">
+                  <div className="glass rounded-2xl p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="font-semibold text-lg">激活码管理</h3>
+                      <TechButton primary size="sm">
+                        <Sparkles className="w-4 h-4 mr-1" />
+                        生成激活码
+                      </TechButton>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-white/10">
+                            <th className="text-left py-3 px-4 text-white/50 font-medium">激活码</th>
+                            <th className="text-left py-3 px-4 text-white/50 font-medium">销售</th>
+                            <th className="text-left py-3 px-4 text-white/50 font-medium">套餐</th>
+                            <th className="text-left py-3 px-4 text-white/50 font-medium">时长</th>
+                            <th className="text-left py-3 px-4 text-white/50 font-medium">状态</th>
+                            <th className="text-left py-3 px-4 text-white/50 font-medium">操作</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-b border-white/5">
+                            <td className="py-3 px-4 font-mono text-sm">S001-VIP3-12M-7K9M</td>
+                            <td className="py-3 px-4">张三</td>
+                            <td className="py-3 px-4">年卡</td>
+                            <td className="py-3 px-4">12个月</td>
+                            <td className="py-3 px-4"><span className="text-green-400">已使用</span></td>
+                            <td className="py-3 px-4">
+                              <button className="text-brand-400 hover:underline">查看</button>
+                            </td>
+                          </tr>
+                          <tr className="border-b border-white/5">
+                            <td className="py-3 px-4 font-mono text-sm">S001-VIP1-1M-ABCD</td>
+                            <td className="py-3 px-4">张三</td>
+                            <td className="py-3 px-4">月卡</td>
+                            <td className="py-3 px-4">1个月</td>
+                            <td className="py-3 px-4"><span className="text-yellow-400">未使用</span></td>
+                            <td className="py-3 px-4">
+                              <button className="text-brand-400 hover:underline">禁用</button>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="py-3 px-4 font-mono text-sm">S002-VIP2-3M-EFGH</td>
+                            <td className="py-3 px-4">李四</td>
+                            <td className="py-3 px-4">季卡</td>
+                            <td className="py-3 px-4">3个月</td>
+                            <td className="py-3 px-4"><span className="text-yellow-400">未使用</span></td>
+                            <td className="py-3 px-4">
+                              <button className="text-brand-400 hover:underline">禁用</button>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </PageWrapper>
+        );
     }
   };
 
@@ -621,7 +1023,8 @@ export default function App() {
             {[
               { id: 'home', label: '首页' },
               { id: 'features', label: '功能' },
-              { id: 'pricing', label: '价格' }
+              { id: 'pricing', label: '价格' },
+              { id: 'download', label: '下载' }
             ].map((item) => (
               <button 
                 key={item.id} 
@@ -635,9 +1038,17 @@ export default function App() {
             ))}
           </div>
 
-          <TechButton primary size="sm" onClick={() => setCurrentPage('pricing')}>
-            立即咨询
-          </TechButton>
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setCurrentPage('login')}
+              className="text-sm text-white/50 hover:text-white transition-colors"
+            >
+              登录
+            </button>
+            <TechButton primary size="sm" onClick={() => setCurrentPage('pricing')}>
+              立即咨询
+            </TechButton>
+          </div>
         </div>
       </nav>
 
