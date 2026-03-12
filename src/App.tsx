@@ -470,43 +470,54 @@ export default function App() {
                 <div className="grid md:grid-cols-3 gap-6">
                   {[
                     {
-                      name: '基础版',
+                      name: '月卡',
                       price: '49',
                       period: '/月',
                       features: [
                         'AI智能对话问答',
-                        '每日10个经营问题提醒',
-                        '基础经营报表导出',
-                        '适合单店体验使用',
+                        '每日经营问题提醒',
+                        '基础经营报表',
+                        '适合单店体验',
                       ],
-                      desc: '体验AI带来的便利'
+                      desc: '基础功能'
                     },
                     {
-                      name: '成长版',
-                      price: '199',
-                      period: '/月',
+                      name: '季卡',
+                      price: '129',
+                      period: '/季度',
                       popular: true,
                       features: [
-                        '多平台数据自动汇总',
-                        'AI营销海报文案生成',
-                        '智能排班与工资表',
-                        '月度经营分析报告',
-                        '报税数据自动整理',
+                        'AI智能对话问答',
+                        '每日经营问题提醒',
+                        '基础经营报表',
+                        'AI生图（20个/月）',
+                        'AI视频生成',
                       ],
                       desc: '门店经营首选'
                     },
                     {
-                      name: '定制版',
-                      price: '联系',
-                      period: '',
+                      name: '年卡',
+                      price: '399',
+                      period: '/年',
                       features: [
-                        '按业态深度定制',
-                        '对接现有ERP/收银系统',
-                        '一对一运营顾问',
-                        '私有化部署',
-                        '专属技术支持',
+                        '全部基础功能',
+                        'AI营销无限量',
+                        '财务报税',
+                        '智能排班工资表',
+                        '月度经营分析报告',
                       ],
-                      desc: '适合连锁门店'
+                      desc: '年度优惠'
+                    },
+                    {
+                      name: '终身',
+                      price: '999',
+                      period: '/终身',
+                      features: [
+                        '年卡全部功能',
+                        '永久更新',
+                        '专属客服',
+                      ],
+                      desc: '一次购买终身使用'
                     },
                   ].map((plan) => (
                     <div key={plan.name} className={`glass rounded-2xl p-8 relative flex flex-col ${plan.popular ? 'border-brand-500/50 ring-2 ring-brand-500/20' : ''}`}>
