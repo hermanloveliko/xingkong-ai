@@ -48,7 +48,7 @@ import {
   Key
 } from 'lucide-react';
 
-type Page = 'home' | 'features' | 'pricing' | 'download' | 'login' | 'register' | 'profile' | 'activate' | 'admin';
+type Page = 'home' | 'features' | 'pricing' | 'download' | 'login' | 'register' | 'profile' | 'activate' | 'admin' | 'admin-login';
 
 // 轮播图图片 - 使用中文文件名
 const galleryImages = [
@@ -681,6 +681,12 @@ export default function App() {
                         立即注册
                       </button>
                     </p>
+                    <p className="text-center text-sm text-white/30 mt-4">
+                      管理员？ 
+                      <button onClick={() => setCurrentPage('admin-login')} className="text-brand-400 hover:underline">
+                        管理员登录
+                      </button>
+                    </p>
                   </div>
                 </div>
               </div>
@@ -882,6 +888,56 @@ export default function App() {
                   <TechButton primary className="w-full justify-center">
                     立即激活
                   </TechButton>
+                </div>
+              </div>
+            </section>
+          </PageWrapper>
+        );
+
+      case 'admin-login':
+        return (
+          <PageWrapper>
+            <section className="pt-32 pb-24 px-6">
+              <div className="max-w-md mx-auto">
+                <div className="glass rounded-2xl p-8">
+                  <h2 className="text-2xl font-bold text-center mb-8">管理员登录</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-white/50 mb-1">用户名</label>
+                      <input
+                        type="text"
+                        className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                        placeholder="请输入管理员用户名"
+                        id="admin-username"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-white/50 mb-1">密码</label>
+                      <input
+                        type="password"
+                        className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                        placeholder="请输入密码"
+                        id="admin-password"
+                      />
+                    </div>
+                    <TechButton primary className="w-full justify-center" onClick={() => {
+                      const username = (document.getElementById('admin-username') as HTMLInputElement).value;
+                      const password = (document.getElementById('admin-password') as HTMLInputElement).value;
+                      // 简单验证
+                      if (username === 'admin' && password === 'xingkong2026') {
+                        setCurrentPage('admin');
+                      } else {
+                        alert('用户名或密码错误');
+                      }
+                    }}>
+                      登录
+                    </TechButton>
+                    <p className="text-center text-sm text-white/50">
+                      <button onClick={() => setCurrentPage('login')} className="text-brand-400 hover:underline">
+                        返回用户登录
+                      </button>
+                    </p>
+                  </div>
                 </div>
               </div>
             </section>
