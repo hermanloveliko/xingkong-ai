@@ -470,54 +470,32 @@ export default function App() {
                 <div className="grid md:grid-cols-3 gap-6">
                   {[
                     {
-                      name: '月卡',
-                      price: '49',
+                      name: '基础版',
+                      price: '99',
                       period: '/月',
                       features: [
-                        'AI智能对话问答',
-                        '每日经营问题提醒',
-                        '基础经营报表',
-                        '适合单店体验',
+                        '经营复盘',
+                        '日常管理',
+                        '员工管理',
                       ],
-                      desc: '基础功能'
+                      desc: '适合小微门店'
                     },
                     {
-                      name: '季卡',
-                      price: '129',
-                      period: '/季度',
+                      name: '专业版',
+                      price: '299',
+                      period: '/月',
                       popular: true,
                       features: [
-                        'AI智能对话问答',
-                        '每日经营问题提醒',
-                        '基础经营报表',
+                        '经营复盘',
+                        '日常管理',
+                        '员工管理',
                         'AI生图（20个/月）',
-                        'AI视频生成',
-                      ],
-                      desc: '门店经营首选'
-                    },
-                    {
-                      name: '年卡',
-                      price: '399',
-                      period: '/年',
-                      features: [
-                        '全部基础功能',
-                        'AI营销无限量',
+                        'AI视频（15个/月）',
+                        'AI剪辑（15个/月）',
+                        '账号监控',
                         '财务报税',
-                        '智能排班工资表',
-                        '月度经营分析报告',
                       ],
-                      desc: '年度优惠'
-                    },
-                    {
-                      name: '终身',
-                      price: '999',
-                      period: '/终身',
-                      features: [
-                        '年卡全部功能',
-                        '永久更新',
-                        '专属客服',
-                      ],
-                      desc: '一次购买终身使用'
+                      desc: '全能版，适合成长型门店'
                     },
                   ].map((plan) => (
                     <div key={plan.name} className={`glass rounded-2xl p-8 relative flex flex-col ${plan.popular ? 'border-brand-500/50 ring-2 ring-brand-500/20' : ''}`}>
@@ -545,6 +523,17 @@ export default function App() {
                       </TechButton>
                     </div>
                   ))}
+                </div>
+
+                {/* AI升级包 */}
+                <div className="mt-12 glass rounded-2xl p-8 text-center">
+                  <h3 className="text-xl font-semibold mb-4">AI增值包（专业版专享）</h3>
+                  <div className="mb-4">
+                    <span className="text-3xl font-bold">¥88</span>
+                    <span className="text-white/50">/月</span>
+                  </div>
+                  <p className="text-white/60">AI生图10个 + AI视频10个 + AI剪辑10个</p>
+                  <p className="text-white/40 text-sm mt-2">不足时可购买升级，有效期1个月</p>
                 </div>
 
                 <div className="mt-16 glass rounded-2xl p-8">
