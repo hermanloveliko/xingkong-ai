@@ -1,1133 +1,1289 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Download, 
-  Cpu, 
-  Zap, 
-  Shield, 
-  Globe, 
-  Github, 
-  Twitter, 
-  ChevronLeft,
-  ChevronRight, 
-  Monitor, 
-  Apple, 
-  Terminal,
-  Menu,
-  X,
-  Layers,
-  Sparkles,
-  ArrowRight,
-  BrainCircuit,
-  BarChart3,
-  Rocket,
-  PlayCircle,
-  CheckCircle2,
-  CreditCard,
-  Activity,
-  Code2,
-  Database,
-  TrendingUp,
-  Users,
-  Receipt,
-  Calculator,
-  Palette,
-  Calendar,
-  FileText,
-  PieChart,
-  MessageSquare,
-  Store,
-  Target,
-  Lightbulb,
-  Wallet,
-  Clock,
-  ShieldCheck,
-  Star,
-  ClipboardList,
-  UploadCloud,
-  Key
-} from 'lucide-react';
 
-type Page = 'home' | 'features' | 'pricing' | 'download' | 'login' | 'register' | 'profile' | 'activate' | 'admin' | 'admin-login';
+// ─── 类型 ────────────────────────────────────────────────────────────────────
+type Page = 'home' | 'features' | 'pricing' | 'contact' | 'login' | 'register'
+  | 'profile' | 'admin' | 'sales';
 
-// 轮播图图片 - 使用中文文件名
-const galleryImages = [
-  { src: '/微信图片_20260307001457.png', alt: '产品截图 1' },
-  { src: '/微信图片_20260307001513.png', alt: '产品截图 2' },
-  { src: '/微信图片_20260307001519.png', alt: '产品截图 3' },
-  { src: '/微信图片_20260307001525.png', alt: '产品截图 4' },
-  { src: '/微信图片_20260307001531.png', alt: '产品截图 5' },
-  { src: '/微信图片_20260307001535.png', alt: '产品截图 6' },
-  { src: '/微信图片_20260307001538.png', alt: '产品截图 7' },
-  { src: '/微信图片_20260307001543.png', alt: '产品截图 8' },
-  { src: '/微信图片_20260307001548.png', alt: '产品截图 9' },
-  { src: '/微信图片_20260307001552.png', alt: '产品截图 10' },
-  { src: '/微信图片_20260307001556.png', alt: '产品截图 11' },
-  { src: '/微信图片_20260307001559.png', alt: '产品截图 12' },
-  { src: '/微信图片_20260307001603.png', alt: '产品截图 13' },
-  { src: '/微信图片_20260307001607.png', alt: '产品截图 14' },
-  { src: '/微信图片_20260307001610.png', alt: '产品截图 15' },
-  { src: '/微信图片_20260307001613.png', alt: '产品截图 16' },
-  { src: '/微信图片_20260307001617.png', alt: '产品截图 17' },
-  { src: '/微信图片_20260307001620.png', alt: '产品截图 18' },
-  { src: '/微信图片_20260307001624.png', alt: '产品截图 19' },
+interface User {
+  id: number;
+  phone: string;
+  company_name?: string;
+  is_activated: number;
+  package_type?: string;
+  expire_date?: string;
+  days_left?: number;
+  ai_image_quota?: number;
+  ai_video_quota?: number;
+  ai_edit_quota?: number;
+  sales_name?: string;
+  sales_code?: string;
+  license_key?: string;
+}
+
+interface PayingPlan {
+  name: string;
+  packageType: string;
+  period: string;
+  price: number;          // 原价
+  months: number;
+  isUpgrade?: boolean;    // 是否升级单
+  credit?: number;        // 可抵扣金额
+  finalPrice?: number;    // 实付金额
+}
+
+// ─── API 工具 ─────────────────────────────────────────────────────────────────
+const API = '/api';
+
+async function apiRequest<T>(
+  endpoint: string,
+  options: RequestInit = {},
+  token?: string,
+): Promise<T> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${API}${endpoint}`, { ...options, headers: { ...headers, ...(options.headers as Record<string, string> || {}) } });
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : {};
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data as T;
+}
+
+// ─── 套餐价格配置 ─────────────────────────────────────────────────────────────
+const PKG_PLANS = [
+  {
+    id: 'VIP1',
+    name: '基础版',
+    desc: '¥99/月 · 适合入门经营管理',
+    color: '#6366f1',
+    features: [
+      '✅ 经营复盘（AI 门店大脑对话）',
+      '✅ 日常管理（SOP / 待办事项）',
+      '✅ 员工管理（档案 / 排班 / 工资）',
+      '——',
+      '🔒 AI 营销工坊（专业版）',
+      '🔒 经营分析（专业版）',
+      '🔒 财务报税（专业版）',
+    ],
+    prices: [
+      { period: '月付', months: 1,  price: 99  },
+      { period: '季付', months: 3,  price: 288 },
+      { period: '年付', months: 12, price: 999 },
+    ],
+  },
+  {
+    id: 'VIP3',
+    name: '专业版',
+    desc: '¥299/月 · 全功能解锁',
+    color: '#f59e0b',
+    highlight: true,
+    features: [
+      '✅ 经营复盘（AI 门店大脑对话）',
+      '✅ 日常管理（SOP / 待办事项）',
+      '✅ 员工管理（档案 / 排班 / 工资）',
+      '✅ AI 营销工坊（生图20张/月 · 视频15个/月 · 剪辑15次/月 · 账号监控）',
+      '✅ 经营分析（KPI 图表 · 月度深度报告）',
+      '✅ 财务报税（记账 · 发票 · 季报汇总）',
+    ],
+    prices: [
+      { period: '月付', months: 1,  price: 299  },
+      { period: '季付', months: 3,  price: 888  },
+      { period: '年付', months: 12, price: 3388 },
+    ],
+  },
 ];
 
-// 轮播图组件
-const ImageCarousel = () => {
-  const [current, setCurrent] = useState(0);
-  const isFirstSlide = current === 0;
-  
-  const next = useCallback(() => setCurrent(c => (c + 1) % galleryImages.length), []);
-  const prev = useCallback(() => setCurrent(c => (c - 1 + galleryImages.length) % galleryImages.length), []);
-  
-  useEffect(() => {
-    // 第一张图停留8秒，其他图停留4秒
-    const interval = isFirstSlide ? 8000 : 4000;
-    const timer = setInterval(next, interval);
-    return () => clearInterval(timer);
-  }, [next, isFirstSlide]);
-  
+// AI 加速包（仅专业版用户可购买）
+// ⚠️ months 必须为 0，与后端 SERVER_PRICES['ADDON_0M'] 对应，确保价格校验正常
+const ADDON = { id: 'ADDON', name: 'AI 加速包', price: 88, months: 0 };
+
+// ─── 主组件 ──────────────────────────────────────────────────────────────────
+export default function App() {
+  const [page, setPage] = useState<Page>('home');
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string>(localStorage.getItem('token') || '');
+  const [mobileMenu, setMobileMenu] = useState(false);
+
+  // 付款弹窗
+  const [payingPlan, setPayingPlan] = useState<PayingPlan | null>(null);
+  const [payLoading, setPayLoading] = useState(false);
+  const [paySuccess, setPaySuccess] = useState<{ expire_date: string; days_left: number; package_type?: string } | null>(null);
+
+  // ── 加载用户信息 ────────────────────────────────────────────────────────────
+  const loadUser = useCallback(async (t: string) => {
+    if (!t) return;
+    try {
+      const u = await apiRequest<User>('/user/info', {}, t);
+      setUser(u);
+    } catch {
+      setToken(''); localStorage.removeItem('token');
+    }
+  }, []);
+
+  useEffect(() => { if (token) loadUser(token); }, [token, loadUser]);
+
+  function logout() {
+    if (token) apiRequest('/auth/logout', { method: 'POST' }, token).catch(() => {});
+    setToken(''); setUser(null); localStorage.removeItem('token');
+    setPage('home');
+  }
+
+  function navigate(p: Page) { setPage(p); setMobileMenu(false); window.scrollTo(0, 0); }
+
+  // ── 购买/升级套餐 ──────────────────────────────────────────────────────────
+  async function handlePurchase() {
+    if (!payingPlan || !token) return;
+    setPayLoading(true);
+    try {
+      const endpoint = payingPlan.isUpgrade ? '/orders/upgrade' : '/orders/purchase';
+      const payAmount = payingPlan.isUpgrade ? (payingPlan.finalPrice ?? payingPlan.price) : payingPlan.price;
+      const data = await apiRequest<{ expire_date: string; days_left: number; package_type: string }>(
+        endpoint,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            plan: payingPlan.name,
+            package_type: payingPlan.packageType,
+            months: payingPlan.months,
+            amount: payAmount,
+          }),
+        },
+        token,
+      );
+      setPaySuccess(data);
+      await loadUser(token);
+    } catch (err: any) {
+      alert(err.message || '操作失败，请稍后重试');
+    } finally {
+      setPayLoading(false);
+    }
+  }
+
+  function openPayModal(plan: PayingPlan) {
+    if (!token) { navigate('login'); return; }
+    setPayingPlan(plan); setPaySuccess(null);
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // 页面渲染
+  // ════════════════════════════════════════════════════════════════════════════
   return (
-    <div className="relative w-full aspect-[4/3] md:aspect-[16/9] overflow-hidden rounded-2xl bg-black">
-      <AnimatePresence mode="wait">
-        <motion.img
-          key={current}
-          src={galleryImages[current].src}
-          alt={galleryImages[current].alt}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.3 }}
-          className="absolute inset-0 w-full h-full object-contain"
+    <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', minHeight: '100vh', background: '#0a0a1a', color: '#e2e8f0' }}>
+      <Navbar user={user} page={page} navigate={navigate} logout={logout} mobileMenu={mobileMenu} setMobileMenu={setMobileMenu} />
+
+      {page === 'home'     && <HomePage navigate={navigate} />}
+      {page === 'features' && <FeaturesPage />}
+      {page === 'pricing'  && <PricingPage user={user} openPayModal={openPayModal} navigate={navigate} />}
+      {page === 'contact'  && <ContactPage user={user} token={token} />}
+      {page === 'login'    && <LoginPage token={token} setToken={setToken} setUser={setUser} navigate={navigate} />}
+      {page === 'register' && <RegisterPage setToken={setToken} navigate={navigate} />}
+      {page === 'profile'  && <ProfilePage user={user} token={token} loadUser={loadUser} openPayModal={openPayModal} navigate={navigate} />}
+      {page === 'admin'    && <AdminPage token={token} />}
+      {page === 'sales'    && <SalesPage token={token} />}
+
+      {/* 付款弹窗 */}
+      {payingPlan && (
+        <PayModal
+          plan={payingPlan}
+          loading={payLoading}
+          success={paySuccess}
+          onPay={handlePurchase}
+          onClose={() => { setPayingPlan(null); setPaySuccess(null); }}
         />
-      </AnimatePresence>
-      
-      {/* 左右箭头 */}
-      <button onClick={prev} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white transition-colors">
-        <ChevronLeft className="w-5 h-5" />
-      </button>
-      <button onClick={next} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white transition-colors">
-        <ChevronRight className="w-5 h-5" />
-      </button>
-      
-      {/* 指示器 */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-        {galleryImages.map((_, i) => (
-          <button
-            key={i}
-            onClick={() => setCurrent(i)}
-            className={`h-1.5 rounded-full transition-all ${i === current ? 'bg-brand-400 w-6' : 'bg-white/30 w-1.5 hover:bg-white/50'}`}
-          />
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 导航栏
+// ════════════════════════════════════════════════════════════════════════════
+function Navbar({ user, page, navigate, logout, mobileMenu, setMobileMenu }: any) {
+  const links: { label: string; page: Page }[] = [
+    { label: '首页', page: 'home' },
+    { label: '功能', page: 'features' },
+    { label: '价格', page: 'pricing' },
+    { label: '联系我们', page: 'contact' },
+  ];
+  return (
+    <nav style={{ background: 'rgba(10,10,26,0.95)', backdropFilter: 'blur(10px)', borderBottom: '1px solid #1e293b', position: 'sticky', top: 0, zIndex: 1000, padding: '0 24px' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', height: 64 }}>
+        <span style={{ fontWeight: 700, fontSize: 20, color: '#6366f1', cursor: 'pointer', marginRight: 'auto' }} onClick={() => navigate('home')}>
+          ✦ 星空AI
+        </span>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {links.map(l => (
+            <button key={l.page} onClick={() => navigate(l.page)}
+              style={{ background: 'none', border: 'none', color: page === l.page ? '#6366f1' : '#94a3b8', cursor: 'pointer', padding: '8px 12px', borderRadius: 6, fontWeight: page === l.page ? 600 : 400, fontSize: 14 }}>
+              {l.label}
+            </button>
+          ))}
+          {user ? (
+            <>
+              <button onClick={() => navigate('profile')} style={{ background: '#1e293b', border: '1px solid #334155', color: '#e2e8f0', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 14 }}>
+                👤 {user.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}
+                {user.is_activated ? ` · ${user.package_type === 'VIP3' ? '专业版' : '基础版'}` : ' · 未激活'}
+              </button>
+              <button onClick={logout} style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 14 }}>退出</button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => navigate('login')} style={{ background: 'none', border: '1px solid #334155', color: '#e2e8f0', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 14 }}>登录</button>
+              <button onClick={() => navigate('register')} style={{ background: '#6366f1', border: 'none', color: '#fff', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 14 }}>注册</button>
+            </>
+          )}
+          <button onClick={() => navigate('admin')} style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 11, padding: '4px 8px' }}>管理</button>
+          <button onClick={() => navigate('sales')} style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: 11, padding: '4px 8px' }}>销售</button>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 首页
+// ════════════════════════════════════════════════════════════════════════════
+function HomePage({ navigate }: { navigate: (p: Page) => void }) {
+  return (
+    <div>
+      {/* Hero */}
+      <section style={{ textAlign: 'center', padding: '120px 24px 80px', background: 'radial-gradient(ellipse at top, #1a1040 0%, #0a0a1a 60%)' }}>
+        <div style={{ display: 'inline-block', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 20, padding: '6px 16px', fontSize: 13, color: '#a5b4fc', marginBottom: 24 }}>
+          🚀 AI 赋能企业增长 · 智能内容管理平台
+        </div>
+        <h1 style={{ fontSize: 'clamp(36px,6vw,72px)', fontWeight: 800, margin: '0 0 24px', lineHeight: 1.15 }}>
+          <span style={{ background: 'linear-gradient(135deg,#6366f1,#a855f7,#ec4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>星空AI</span>
+          <br />智能企业解决方案
+        </h1>
+        <p style={{ fontSize: 18, color: '#94a3b8', maxWidth: 600, margin: '0 auto 40px', lineHeight: 1.7 }}>
+          用 AI 重塑企业内容创作、品牌管理与业务增长。一站式智能平台，让每个企业都能驾驭 AI。
+        </p>
+        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button onClick={() => navigate('register')} style={{ background: 'linear-gradient(135deg,#6366f1,#a855f7)', border: 'none', color: '#fff', borderRadius: 8, padding: '14px 32px', fontSize: 16, fontWeight: 600, cursor: 'pointer' }}>
+            免费开始 →
+          </button>
+          <button onClick={() => navigate('pricing')} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid #334155', color: '#e2e8f0', borderRadius: 8, padding: '14px 32px', fontSize: 16, cursor: 'pointer' }}>
+            查看价格
+          </button>
+        </div>
+      </section>
+
+      {/* 数据 */}
+      <section style={{ padding: '60px 24px', background: '#0d0d20', borderTop: '1px solid #1e293b', borderBottom: '1px solid #1e293b' }}>
+        <div style={{ maxWidth: 960, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 40, textAlign: 'center' }}>
+          {[['5,000+', '企业客户'], ['98%', '客户满意度'], ['3倍', '效率提升'], ['24/7', 'AI 智能服务']].map(([v, l]) => (
+            <div key={l}>
+              <div style={{ fontSize: 40, fontWeight: 800, color: '#6366f1' }}>{v}</div>
+              <div style={{ color: '#64748b', marginTop: 8 }}>{l}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 核心功能 */}
+      <section style={{ padding: '80px 24px' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          <h2 style={{ textAlign: 'center', fontSize: 36, fontWeight: 700, marginBottom: 12 }}>核心功能</h2>
+          <p style={{ textAlign: 'center', color: '#64748b', marginBottom: 60 }}>为企业量身定制的 AI 工具集</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 24 }}>
+            {[
+              { icon: '🤖', t: 'AI 内容生成', d: '一键生成高质量文章、报告、营销文案，告别创作瓶颈' },
+              { icon: '🎨', t: 'AI 图像创作', d: '文字描述即生成专业级图片，品牌视觉素材按需生产' },
+              { icon: '🎬', t: 'AI 视频剪辑', d: '智能剪辑、字幕生成、视频改写，内容创作效率提升10倍' },
+              { icon: '📊', t: '数据洞察', d: '实时分析业务数据，AI 驱动的决策建议' },
+              { icon: '🔗', t: '系统集成', d: '与现有 ERP、CRM 无缝对接，平滑过渡' },
+              { icon: '🛡️', t: '安全合规', d: '企业级数据加密，满足国内合规要求' },
+            ].map(f => (
+              <div key={f.t} style={{ background: '#0d0d20', border: '1px solid #1e293b', borderRadius: 12, padding: 28 }}>
+                <div style={{ fontSize: 36, marginBottom: 16 }}>{f.icon}</div>
+                <h3 style={{ fontWeight: 600, marginBottom: 10, fontSize: 17 }}>{f.t}</h3>
+                <p style={{ color: '#64748b', lineHeight: 1.6, fontSize: 14 }}>{f.d}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section style={{ padding: '80px 24px', textAlign: 'center', background: 'radial-gradient(ellipse at center, #1a1040 0%, #0a0a1a 70%)' }}>
+        <h2 style={{ fontSize: 36, fontWeight: 700, marginBottom: 16 }}>准备好了？立即开始</h2>
+        <p style={{ color: '#64748b', marginBottom: 32 }}>注册后即可体验 AI 功能，付款后立即激活套餐</p>
+        <button onClick={() => navigate('register')} style={{ background: 'linear-gradient(135deg,#6366f1,#a855f7)', border: 'none', color: '#fff', borderRadius: 8, padding: '16px 40px', fontSize: 18, fontWeight: 600, cursor: 'pointer' }}>
+          免费注册
+        </button>
+      </section>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 功能页
+// ════════════════════════════════════════════════════════════════════════════
+function FeaturesPage() {
+  return (
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '60px 24px' }}>
+      <h2 style={{ textAlign: 'center', fontSize: 36, fontWeight: 700, marginBottom: 12 }}>全部功能</h2>
+      <p style={{ textAlign: 'center', color: '#64748b', marginBottom: 60 }}>基础版 vs 专业版功能对比</p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
+        {PKG_PLANS.map(p => (
+          <div key={p.id} style={{ background: '#0d0d20', border: `1px solid ${p.highlight ? p.color : '#1e293b'}`, borderRadius: 16, padding: 32 }}>
+            <h3 style={{ color: p.color, fontSize: 22, fontWeight: 700, marginBottom: 8 }}>{p.name}</h3>
+            <p style={{ color: '#64748b', marginBottom: 20 }}>{p.desc}</p>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {p.features.map(f => (
+                f === '——'
+                  ? <li key={f} style={{ borderTop: '1px solid #1e293b', margin: '8px 0' }} />
+                  : <li key={f} style={{ padding: '7px 0', borderBottom: '1px solid #1e293b', color: f.startsWith('🔒') ? '#475569' : '#94a3b8', fontSize: 14 }}>{f}</li>
+              ))}
+            </ul>
+          </div>
         ))}
       </div>
     </div>
   );
-};
+}
 
-const PageWrapper = ({ children }: { children: React.ReactNode }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -20 }}
-    transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-    className="w-full"
-  >
-    {children}
-  </motion.div>
-);
-
-const TechButton = ({ children, onClick, primary, size = 'md' }: { children: React.ReactNode, onClick?: () => void, primary?: boolean, size?: 'sm' | 'md' | 'lg' }) => {
-  const sizeClasses = {
-    sm: 'px-4 py-2 text-xs',
-    md: 'px-6 py-3 text-sm',
-    lg: 'px-8 py-4 text-base'
-  };
-  return ( 
-    <button 
-      onClick={onClick}
-      className={`relative ${sizeClasses[size]} font-medium tracking-wide transition-all duration-300 group overflow-hidden rounded-lg ${
-        primary ? 'bg-brand-500 text-white hover:bg-brand-400' : 'glass text-white/80 hover:text-white hover:bg-white/[0.06]'
-      }`}
-    >
-      <div className="relative z-10 flex items-center gap-2">{children}</div>
-    </button>
-  );
-};
-
-const LogoNA = ({ className = "w-10 h-10" }: { className?: string }) => (
-  <svg viewBox="0 0 120 80" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M20 60V20L50 50V20" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" className="text-brand-400"/>
-    <path d="M70 60L85 20L100 60" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" className="text-brand-300"/>
-    <path d="M78 45H92" stroke="currentColor" strokeWidth="6" strokeLinecap="round" className="text-brand-500"/>
-  </svg>
-);
-
-const FeatureCard = ({ icon: Icon, title, description, index }: { icon: any, title: string, description: string, index: number }) => (
-  <motion.div 
-    initial={{ opacity: 0, y: 30 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true }}
-    transition={{ delay: index * 0.1, duration: 0.5 }}
-    className="glass p-8 rounded-2xl relative overflow-hidden group hover:bg-white/[0.05] transition-all duration-300"
-  >
-    <div className="absolute top-0 right-0 p-4 font-mono text-brand-500/20 text-4xl font-bold">{String(index + 1).padStart(2, '0')}</div>
-    <div className="w-14 h-14 rounded-xl bg-brand-500/10 flex items-center justify-center mb-6 group-hover:bg-brand-500/20 transition-colors">
-      <Icon className="text-brand-400 w-7 h-7" />
-    </div>
-    <h3 className="text-xl font-semibold mb-3 text-white">{title}</h3>
-    <p className="text-white/60 text-sm leading-relaxed">{description}</p>
-  </motion.div>
-);
-
-const ProblemCard = ({ title, description, oldWay, newWay }: { title: string, description: string, oldWay: string, newWay: string }) => (
-  <div className="glass p-6 rounded-xl">
-    <h4 className="text-lg font-semibold mb-2 text-white">{title}</h4>
-    <p className="text-white/50 text-sm mb-4">{description}</p>
-    <div className="grid grid-cols-2 gap-4 text-sm">
-      <div className="bg-red-500/10 rounded-lg p-3 border border-red-500/20">
-        <div className="text-red-400 text-xs mb-1">以前</div>
-        <div className="text-white/60">{oldWay}</div>
-      </div>
-      <div className="bg-brand-500/10 rounded-lg p-3 border border-brand-500/20">
-        <div className="text-brand-400 text-xs mb-1">现在</div>
-        <div className="text-white">{newWay}</div>
-      </div>
-    </div>
-  </div>
-);
-
-export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('home');
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [orderForm, setOrderForm] = useState({
-    customer_name: '',
-    contact: '',
-    plan: 'Professional',
-    description: '',
-  });
-  const [orderStatus, setOrderStatus] = useState<string | null>(null);
-
-  useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const handleOrderSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setOrderStatus(null);
-    try {
-      const res = await fetch('http://localhost:4000/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderForm),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || '提交失败，请稍后重试');
-      }
-      const data = await res.json();
-      setOrderStatus(`提交成功，订单编号：${data.id}`);
-      setOrderForm({ customer_name: '', contact: '', plan: 'Professional', description: '' });
-    } catch (err: any) {
-      setOrderStatus(err.message || '提交失败，请检查网络');
-    }
-  };
-
-  const features = [
-    {
-      icon: MessageSquare,
-      title: 'AI智能对话',
-      description: '像聊天一样简单。直接告诉AI你的需求："帮我分析营收"、"帮我排班"、"怎么做活动"，AI秒懂并给出可执行方案。7×24小时随时响应。'
-    },
-    {
-      icon: TrendingUp,
-      title: '多平台数据自动爬取',
-      description: '美团、饿了么、大众点评数据自动汇总。一个界面看清营收、订单、评价等核心指标，数据可视化一目了然。'
-    },
-    {
-      icon: ClipboardList,
-      title: '每日经营复盘',
-      description: 'AI每天生成10个经营问题，引导完成每日复盘。涵盖营收、成本、客流、评价等，数据自动累计到系统，月度统计更轻松。'
-    },
-    {
-      icon: Palette,
-      title: 'AI营销助手',
-      description: '不会设计没关系。说"帮我做个促销海报"，AI几秒钟生成。想要短视频？告诉AI主题，自动帮你剪辑。降低营销门槛，提升曝光。'
-    },
-    {
-      icon: Calendar,
-      title: '智能排班',
-      description: '根据客流和营收，AI智能推荐最优排班方案。一键通知员工，省时省心。'
-    },
-    {
-      icon: Wallet,
-      title: '财务记账 + 报税',
-      description: '日常收支随手记，营收成本自动同步。月度报表自动生成，报税数据自动整理。每年省下3000-5000元会计费！'
-    },
-    {
-      icon: Calculator,
-      title: '工资表自动生成',
-      description: '考勤自动统计，加班请假提成自动计算。一键生成工资表，支持导出Excel。几分钟搞定工资核算。'
-    },
-    {
-      icon: PieChart,
-      title: '经营数据分析',
-      description: '自动汇总每日数据，智能计算KPI指标（营收、成本、利润、评分等）。支持月度深度报告生成。'
-    }
-  ];
-
-  const problems = [
-    { title: '数据分散', description: '多个平台来回切换', oldWay: '手动统计一下午', newWay: 'AI 3秒汇总' },
-    { title: '营销做图', description: '请设计师太贵', oldWay: '等设计师出图', newWay: 'AI现场生成' },
-    { title: '员工排班', description: '算来算去算不清', oldWay: '凭经验猜测', newWay: '用数据说话' },
-    { title: '记账报税', description: '每个月对账对到头痛', oldWay: '请会计每年3000+', newWay: 'AI自动整理' },
-    { title: '工资核算', description: '做表要做到半夜', oldWay: '手动计算加班', newWay: '系统自动生成' },
-    { title: '经营分析', description: '数据太多整理不过来', oldWay: '凭感觉判断', newWay: 'AI给出建议' },
-  ];
-
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'home':
-        return (
-          <PageWrapper>
-            {/* Hero Section */}
-            <section className="pt-40 pb-24 px-6">
-              <div className="max-w-6xl mx-auto">
-                <div className="text-center mb-16">
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-sm mb-8">
-                    <Star className="w-4 h-4" />
-                    <span>让开店变得更简单</span>
-                  </div>
-                  {/* 产品演示视频 */}
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="mb-10"
-                  >
-                    <video 
-                      src="/demo.mp4" 
-                      controls 
-                      autoPlay 
-                      muted 
-                      loop
-                      playsInline
-                      className="w-full max-w-3xl mx-auto rounded-2xl shadow-2xl border border-white/10"
-                      style={{ maxHeight: '400px' }}
-                    />
-                  </motion.div>
-                  <h1 className="text-5xl md:text-6xl lg:text-7xl font-display font-bold mb-6 leading-tight">
-                    星空AI
-                    <span className="block text-brand-400">智能门店经营助手</span>
-                  </h1>
-                  <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto mb-10 leading-relaxed">
-                    专为街边门店打造的AI经营助手。餐饮、零售、服务业——不管什么业态，都能帮你轻松管理店铺。
-                  </p>
-                  <div className="flex flex-wrap justify-center gap-4 mb-12">
-                    <TechButton primary size="lg" onClick={() => setCurrentPage('pricing')}>
-                      立即体验 <ArrowRight className="w-4 h-4 ml-2" />
-                    </TechButton>
-                    <TechButton size="lg" onClick={() => setCurrentPage('features')}>
-                      了解功能
-                    </TechButton>
-                  </div>
-                </div>
-
-                {/* Dashboard Preview - 产品截图轮播 */}
-                <motion.div 
-                  initial={{ opacity: 0, y: 40 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3, duration: 0.6 }}
-                  className="relative"
-                >
-                  <div className="absolute inset-0 bg-brand-500/20 blur-[80px] rounded-3xl -z-10" />
-                  <ImageCarousel />
-                </motion.div>
-              </div>
-            </section>
-
-            {/* Problems Section */}
-            <section className="py-20 px-6">
-              <div className="max-w-6xl mx-auto">
-                <div className="text-center mb-14">
-                  <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">你是否遇到过这些烦恼？</h2>
-                  <p className="text-white/50">星空AI帮你一键解决</p>
-                </div>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {problems.map((item, i) => (
-                    <ProblemCard key={i} {...item} />
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            {/* Features Preview */}
-            <section className="py-20 px-6">
-              <div className="max-w-6xl mx-auto">
-                <div className="text-center mb-14">
-                  <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">星空AI能做什么？</h2>
-                  <p className="text-white/50">8大核心功能，帮你省心省力</p>
-                </div>
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {features.slice(0, 8).map((f, i) => (
-                    <FeatureCard key={i} {...f} index={i} />
-                  ))}
-                </div>
-                <div className="text-center mt-10">
-                  <TechButton onClick={() => setCurrentPage('features')}>
-                    查看全部功能 <ChevronRight className="w-4 h-4 ml-1" />
-                  </TechButton>
-                </div>
-              </div>
-            </section>
-
-            {/* CTA Section */}
-            <section className="py-20 px-6">
-              <div className="max-w-4xl mx-auto">
-                <div className="glass rounded-3xl p-10 md:p-14 text-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-brand-500/5 -z-10" />
-                  <Lightbulb className="w-12 h-12 text-brand-400 mx-auto mb-6" />
-                  <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">让AI成为你的经营顾问</h2>
-                  <p className="text-white/60 mb-8 max-w-xl mx-auto">
-                    告别繁琐管理，专注店铺经营。像请了一个24小时不休息的店长，帮你整理数据、分析问题、想营销主意。
-                  </p>
-                  <TechButton primary size="lg" onClick={() => setCurrentPage('pricing')}>
-                    立即开始 <ArrowRight className="w-5 h-5 ml-2" />
-                  </TechButton>
-                </div>
-              </div>
-            </section>
-          </PageWrapper>
-        );
-
-      case 'features':
-        return (
-          <PageWrapper>
-            <section className="pt-32 pb-20 px-6">
-              <div className="max-w-6xl mx-auto">
-                <div className="text-center mb-16">
-                  <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">核心功能</h1>
-                  <p className="text-white/60 text-lg max-w-2xl mx-auto">
-                    星空AI像一个24小时不休息的店长，帮你整理数据、分析问题、想营销主意、算工资。
-                  </p>
-                </div>
-
-                <div className="space-y-16">
-                  {features.map((f, i) => (
-                    <motion.div 
-                      key={i}
-                      initial={{ opacity: 0, y: 40 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.5 }}
-                      className={`flex flex-col ${i % 2 === 1 ? 'md:flex-row-reverse' : 'md:flex-row'} gap-8 items-center`}
-                    >
-                      <div className="flex-1">
-                        <div className="w-16 h-16 rounded-xl bg-brand-500/10 flex items-center justify-center mb-6">
-                          <f.icon className="text-brand-400 w-8 h-8" />
-                        </div>
-                        <h3 className="text-2xl font-semibold mb-3">{f.title}</h3>
-                        <p className="text-white/60 leading-relaxed">{f.description}</p>
-                      </div>
-                      <div className="flex-1 w-full">
-                        <div className="glass rounded-2xl p-8 aspect-video flex items-center justify-center">
-                          <f.icon className="text-brand-500/30 w-24 h-24" />
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-
-                <div className="mt-20 text-center">
-                  <h3 className="text-2xl font-semibold mb-6">适用业态</h3>
-                  <div className="flex flex-wrap justify-center gap-3">
-                    {['餐饮店', '便利店', '超市', '药店', '母婴店', '美容', '美发', '洗车', '维修', '服装店'].map((item) => (
-                      <span key={item} className="px-4 py-2 rounded-full bg-white/5 text-white/70 text-sm">
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </section>
-          </PageWrapper>
-        );
-
-      case 'pricing':
-        return (
-          <PageWrapper>
-            <section className="pt-32 pb-20 px-6">
-              <div className="max-w-5xl mx-auto">
-                <div className="text-center mb-14">
-                  <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">套餐与费用</h1>
-                  <p className="text-white/60 text-lg">
-                    一顿饭的钱，帮你省下运营、会计和数据分析的人力成本
-                  </p>
-                </div>
-
-                <div className="grid md:grid-cols-3 gap-6">
-                  {[
-                    {
-                      name: '基础版',
-                      price: '99',
-                      period: '/月',
-                      features: [
-                        '经营复盘',
-                        '日常管理',
-                        '员工管理',
-                      ],
-                      desc: '适合小微门店'
-                    },
-                    {
-                      name: '专业版',
-                      price: '299',
-                      period: '/月',
-                      popular: true,
-                      features: [
-                        '经营复盘',
-                        '日常管理',
-                        '员工管理',
-                        'AI生图（20个/月）',
-                        'AI视频（15个/月）',
-                        'AI剪辑（15个/月）',
-                        '账号监控',
-                        '财务报税',
-                      ],
-                      desc: '全能版，适合成长型门店'
-                    },
-                  ].map((plan) => (
-                    <div key={plan.name} className={`glass rounded-2xl p-8 relative flex flex-col ${plan.popular ? 'border-brand-500/50 ring-2 ring-brand-500/20' : ''}`}>
-                      {plan.popular && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-500 text-white px-4 py-1 rounded-full text-xs font-medium">
-                          最受欢迎
-                        </div>
-                      )}
-                      <h3 className="text-xl font-semibold mb-2">{plan.name}</h3>
-                      <p className="text-white/40 text-sm mb-4">{plan.desc}</p>
-                      <div className="mb-6">
-                        <span className="text-4xl font-bold">{plan.price}</span>
-                        <span className="text-white/40 text-sm">{plan.period}</span>
-                      </div>
-                      <ul className="space-y-3 mb-8 flex-grow">
-                        {plan.features.map((f, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm text-white/70">
-                            <CheckCircle2 className="w-4 h-4 text-brand-400 mt-0.5 flex-shrink-0" />
-                            <span>{f}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      <TechButton primary={plan.popular} onClick={() => {}}>
-                        立即咨询
-                      </TechButton>
-                    </div>
-                  ))}
-                </div>
-
-                {/* AI升级包 */}
-                <div className="mt-12 glass rounded-2xl p-8 text-center">
-                  <h3 className="text-xl font-semibold mb-4">AI增值包（专业版专享）</h3>
-                  <div className="mb-4">
-                    <span className="text-3xl font-bold">¥88</span>
-                    <span className="text-white/50">/月</span>
-                  </div>
-                  <p className="text-white/60">AI生图10个 + AI视频10个 + AI剪辑10个</p>
-                  <p className="text-white/40 text-sm mt-2">不足时可购买升级，有效期1个月</p>
-                </div>
-
-                <div className="mt-16 glass rounded-2xl p-8">
-                  <h3 className="text-xl font-semibold mb-6 text-center">定制需求表单</h3>
-                  <form onSubmit={handleOrderSubmit} className="max-w-xl mx-auto space-y-4">
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs text-white/50 mb-1">姓名/公司名</label>
-                        <input
-                          className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500 transition-colors"
-                          value={orderForm.customer_name}
-                          onChange={(e) => setOrderForm({ ...orderForm, customer_name: e.target.value })}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-white/50 mb-1">联系方式</label>
-                        <input
-                          className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500 transition-colors"
-                          value={orderForm.contact}
-                          onChange={(e) => setOrderForm({ ...orderForm, contact: e.target.value })}
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-white/50 mb-1">意向套餐</label>
-                      <select
-                        className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500 transition-colors"
-                        value={orderForm.plan}
-                        onChange={(e) => setOrderForm({ ...orderForm, plan: e.target.value })}
-                      >
-                        <option value="Starter">基础版</option>
-                        <option value="Professional">成长版</option>
-                        <option value="Enterprise">定制版</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-white/50 mb-1">门店类型和需求描述</label>
-                      <textarea
-                        className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500 transition-colors min-h-[100px]"
-                        value={orderForm.description}
-                        onChange={(e) => setOrderForm({ ...orderForm, description: e.target.value })}
-                        placeholder="告诉我们你的门店类型和需求..."
-                      />
-                    </div>
-                    <div className="flex items-center gap-4 pt-2">
-                      <TechButton primary type="submit">
-                        提交需求 <Rocket className="w-4 h-4 ml-2" />
-                      </TechButton>
-                      {orderStatus && (
-                        <span className="text-sm text-brand-400">{orderStatus}</span>
-                      )}
-                    </div>
-                  </form>
-                </div>
-              </div>
-            </section>
-          </PageWrapper>
-        );
-
-      case 'download':
-        return (
-          <PageWrapper>
-            <section className="pt-32 pb-24 px-6">
-              <div className="max-w-4xl mx-auto text-center">
-                <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">
-                  下载星空AI
-                </h1>
-                <p className="text-lg text-white/60 mb-12">
-                  专为门店打造的智能经营助手，让管理更简单
-                </p>
-
-                <div className="grid md:grid-cols-2 gap-8 mb-12">
-                  <div className="glass rounded-2xl p-8">
-                    <Monitor className="w-16 h-16 mx-auto mb-4 text-brand-400" />
-                    <h3 className="text-xl font-semibold mb-2">Windows 版本</h3>
-                    <p className="text-white/50 text-sm mb-6">适用于 Windows 10/11 系统</p>
-                    <TechButton primary onClick={() => {}}>
-                      <Download className="w-4 h-4 mr-2" />
-                      下载安装版
-                    </TechButton>
-                  </div>
-                  <div className="glass rounded-2xl p-8">
-                    <Zap className="w-16 h-16 mx-auto mb-4 text-brand-400" />
-                    <h3 className="text-xl font-semibold mb-2">Windows 便携版</h3>
-                    <p className="text-white/50 text-sm mb-6">无需安装，插上U盘随时使用</p>
-                    <TechButton onClick={() => {}}>
-                      <Download className="w-4 h-4 mr-2" />
-                      下载便携版
-                    </TechButton>
-                  </div>
-                </div>
-
-                <div className="glass rounded-2xl p-6 max-w-md mx-auto">
-                  <div className="flex items-center justify-center gap-2 text-white/50 text-sm mb-4">
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>安全无病毒，请放心使用</span>
-                  </div>
-                  <p className="text-xs text-white/30">
-                    版本：1.0.0 | 大小：约 240MB
-                  </p>
-                </div>
-              </div>
-            </section>
-          </PageWrapper>
-        );
-
-      case 'login':
-        return (
-          <PageWrapper>
-            <section className="pt-32 pb-24 px-6">
-              <div className="max-w-md mx-auto">
-                <div className="glass rounded-2xl p-8">
-                  <h2 className="text-2xl font-bold text-center mb-8">登录</h2>
-                  <p className="text-white/50 text-center mb-6">使用手机号登录</p>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs text-white/50 mb-1">手机号</label>
-                      <input
-                        type="tel"
-                        className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
-                        placeholder="请输入手机号"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-white/50 mb-1">验证码</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          className="flex-1 rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
-                          placeholder="请输入验证码"
-                        />
-                        <button className="px-4 py-2 rounded-lg bg-white/10 text-sm hover:bg-white/20 transition-colors">
-                          获取验证码
-                        </button>
-                      </div>
-                    </div>
-                    <TechButton primary className="w-full justify-center">
-                      登录
-                    </TechButton>
-                    <p className="text-center text-sm text-white/50">
-                      还没有账号？ 
-                      <button onClick={() => setCurrentPage('register')} className="text-brand-400 hover:underline">
-                        立即注册
-                      </button>
-                    </p>
-                    <p className="text-center text-sm text-white/30 mt-4">
-                      管理员？ 
-                      <button onClick={() => setCurrentPage('admin-login')} className="text-brand-400 hover:underline">
-                        管理员登录
-                      </button>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </PageWrapper>
-        );
-
-      case 'register':
-        return (
-          <PageWrapper>
-            <section className="pt-32 pb-24 px-6">
-              <div className="max-w-md mx-auto">
-                <div className="glass rounded-2xl p-8">
-                  <h2 className="text-2xl font-bold text-center mb-8">注册</h2>
-                  <p className="text-white/50 text-center mb-6">手机号注册</p>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs text-white/50 mb-1">手机号</label>
-                      <input
-                        type="tel"
-                        className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
-                        placeholder="请输入手机号"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-white/50 mb-1">验证码</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          className="flex-1 rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
-                          placeholder="请输入验证码"
-                        />
-                        <button className="px-4 py-2 rounded-lg bg-white/10 text-sm hover:bg-white/20 transition-colors">
-                          获取验证码
-                        </button>
-                      </div>
-                    </div>
-                    <TechButton primary className="w-full justify-center">
-                      注册
-                    </TechButton>
-                    <p className="text-center text-sm text-white/50">
-                      已有账号？ 
-                      <button onClick={() => setCurrentPage('login')} className="text-brand-400 hover:underline">
-                        立即登录
-                      </button>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </PageWrapper>
-        );
-
-      case 'profile':
-        return (
-          <PageWrapper>
-            <section className="pt-32 pb-24 px-6">
-              <div className="max-w-4xl mx-auto">
-                <h1 className="text-3xl font-bold mb-8">个人中心</h1>
-                <div className="grid md:grid-cols-3 gap-8">
-                  <div className="md:col-span-1">
-                    <div className="glass rounded-2xl p-6">
-                      <div className="text-center">
-                        <div className="w-20 h-20 rounded-full bg-brand-500/20 flex items-center justify-center mx-auto mb-4">
-                          <Users className="w-10 h-10 text-brand-400" />
-                        </div>
-                        <h3 className="font-semibold mb-1">用户</h3>
-                        <p className="text-white/50 text-sm">138****8888</p>
-                      </div>
-                      <div className="mt-6 space-y-2">
-                        <button className="w-full text-left px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm">
-                          我的订单
-                        </button>
-                        <button className="w-full text-left px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm">
-                          激活码
-                        </button>
-                        <button className="w-full text-left px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm">
-                          账户设置
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="md:col-span-2">
-                    <div className="glass rounded-2xl p-6 mb-6">
-                      <h3 className="font-semibold mb-4">我的订单</h3>
-                      <p className="text-white/50 text-sm">暂无订单</p>
-                    </div>
-                    <div className="glass rounded-2xl p-6">
-                      <h3 className="font-semibold mb-4">我的激活码</h3>
-                      <p className="text-white/50 text-sm">暂无激活码</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </PageWrapper>
-        );
-
-      case 'activate':
-        return (
-          <PageWrapper>
-            <section className="pt-32 pb-24 px-6">
-              <div className="max-w-2xl mx-auto">
-                <div className="glass rounded-2xl p-8">
-                  <div className="text-center mb-8">
-                    <ShieldCheck className="w-16 h-16 mx-auto mb-4 text-brand-400" />
-                    <h2 className="text-2xl font-bold mb-2">激活您的账户</h2>
-                    <p className="text-white/50">请完成以下步骤来激活您的星空AI账户</p>
-                  </div>
-
-                  {/* 步骤1：登录 */}
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="w-6 h-6 rounded-full bg-brand-500 text-white text-sm flex items-center justify-center">1</span>
-                      <span className="font-medium">登录账户</span>
-                    </div>
-                    <div className="pl-8 space-y-4">
-                      <div>
-                        <label className="block text-xs text-white/50 mb-1">手机号</label>
-                        <input
-                          type="tel"
-                          className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
-                          placeholder="请输入手机号"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-white/50 mb-1">验证码</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            className="flex-1 rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
-                            placeholder="请输入验证码"
-                          />
-                          <button className="px-4 py-2 rounded-lg bg-white/10 text-sm hover:bg-white/20 transition-colors">
-                            获取验证码
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 步骤2：设置密码 */}
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="w-6 h-6 rounded-full bg-brand-500 text-white text-sm flex items-center justify-center">2</span>
-                      <span className="font-medium">设置密码</span>
-                    </div>
-                    <div className="pl-8 space-y-4">
-                      <div>
-                        <label className="block text-xs text-white/50 mb-1">设置登录密码</label>
-                        <input
-                          type="password"
-                          className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
-                          placeholder="请设置密码"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-white/50 mb-1">确认密码</label>
-                        <input
-                          type="password"
-                          className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
-                          placeholder="请确认密码"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 步骤3：输入激活码 */}
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="w-6 h-6 rounded-full bg-brand-500 text-white text-sm flex items-center justify-center">3</span>
-                      <span className="font-medium">输入激活码</span>
-                    </div>
-                    <div className="pl-8">
-                      <input
-                        type="text"
-                        className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-sm outline-none focus:border-brand-500 text-center text-lg font-mono"
-                        placeholder="请输入激活码，如：S001-VIP3-12M-XXXX"
-                      />
-                      <p className="text-xs text-white/30 mt-2">激活码由销售提供</p>
-                    </div>
-                  </div>
-
-                  {/* 步骤4：上传营业执照 */}
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="w-6 h-6 rounded-full bg-brand-500 text-white text-sm flex items-center justify-center">4</span>
-                      <span className="font-medium">上传营业执照（可选）</span>
-                    </div>
-                    <div className="pl-8">
-                      <div className="border-2 border-dashed border-white/10 rounded-xl p-8 text-center hover:border-brand-500/50 transition-colors cursor-pointer">
-                        <UploadCloud className="w-10 h-10 mx-auto mb-2 text-white/30" />
-                        <p className="text-sm text-white/50">点击或拖拽文件到此处上传</p>
-                        <p className="text-xs text-white/30 mt-1">支持 JPG、PNG 格式</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <TechButton primary className="w-full justify-center">
-                    立即激活
-                  </TechButton>
-                </div>
-              </div>
-            </section>
-          </PageWrapper>
-        );
-
-      case 'admin-login':
-        return (
-          <PageWrapper>
-            <section className="pt-32 pb-24 px-6">
-              <div className="max-w-md mx-auto">
-                <div className="glass rounded-2xl p-8">
-                  <h2 className="text-2xl font-bold text-center mb-8">管理员登录</h2>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs text-white/50 mb-1">用户名</label>
-                      <input
-                        type="text"
-                        className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
-                        placeholder="请输入管理员用户名"
-                        id="admin-username"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-white/50 mb-1">密码</label>
-                      <input
-                        type="password"
-                        className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
-                        placeholder="请输入密码"
-                        id="admin-password"
-                      />
-                    </div>
-                    <TechButton primary className="w-full justify-center" onClick={() => {
-                      const username = (document.getElementById('admin-username') as HTMLInputElement).value;
-                      const password = (document.getElementById('admin-password') as HTMLInputElement).value;
-                      // 简单验证
-                      if (username === 'admin' && password === 'xingkong2026') {
-                        setCurrentPage('admin');
-                      } else {
-                        alert('用户名或密码错误');
-                      }
-                    }}>
-                      登录
-                    </TechButton>
-                    <p className="text-center text-sm text-white/50">
-                      <button onClick={() => setCurrentPage('login')} className="text-brand-400 hover:underline">
-                        返回用户登录
-                      </button>
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </PageWrapper>
-        );
-
-      case 'admin':
-        return (
-          <PageWrapper>
-            <section className="pt-24 pb-24 px-6">
-              <div className="max-w-6xl mx-auto">
-                <div className="flex items-center justify-between mb-8">
-                  <h1 className="text-3xl font-bold">管理后台</h1>
-                  <button 
-                    onClick={() => setCurrentPage('home')}
-                    className="text-sm text-white/50 hover:text-white"
-                  >
-                    返回首页
-                  </button>
-                </div>
-
-                <div className="grid md:grid-cols-4 gap-6 mb-8">
-                  {[
-                    { icon: FileText, label: '内容管理', desc: '修改首页文字图片' },
-                    { icon: CreditCard, label: '套餐管理', desc: '添加/修改套餐' },
-                    { icon: Key, label: '激活码', desc: '生成/查看激活码' },
-                    { icon: Receipt, label: '订单管理', desc: '查看处理订单' },
-                  ].map((item, i) => (
-                    <div key={i} className="glass rounded-2xl p-6 hover:border-brand-500/30 border border-transparent transition-colors cursor-pointer">
-                      <item.icon className="w-10 h-10 text-brand-400 mb-4" />
-                      <h3 className="font-semibold mb-1">{item.label}</h3>
-                      <p className="text-white/50 text-sm">{item.desc}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="grid md:grid-cols-3 gap-6">
-                  {[
-                    { icon: Users, label: '用户管理', desc: '查看激活用户' },
-                    { icon: Store, label: '销售管理', desc: '添加销售查看业绩' },
-                    { icon: BarChart3, label: '数据统计', desc: '销售业绩统计' },
-                  ].map((item, i) => (
-                    <div key={i} className="glass rounded-2xl p-6 hover:border-brand-500/30 border border-transparent transition-colors cursor-pointer">
-                      <item.icon className="w-10 h-10 text-brand-400 mb-4" />
-                      <h3 className="font-semibold mb-1">{item.label}</h3>
-                      <p className="text-white/50 text-sm">{item.desc}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* 模拟激活码管理界面 */}
-                <div className="mt-12">
-                  <div className="glass rounded-2xl p-6">
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="font-semibold text-lg">激活码管理</h3>
-                      <TechButton primary size="sm">
-                        <Sparkles className="w-4 h-4 mr-1" />
-                        生成激活码
-                      </TechButton>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-white/10">
-                            <th className="text-left py-3 px-4 text-white/50 font-medium">激活码</th>
-                            <th className="text-left py-3 px-4 text-white/50 font-medium">销售</th>
-                            <th className="text-left py-3 px-4 text-white/50 font-medium">套餐</th>
-                            <th className="text-left py-3 px-4 text-white/50 font-medium">时长</th>
-                            <th className="text-left py-3 px-4 text-white/50 font-medium">状态</th>
-                            <th className="text-left py-3 px-4 text-white/50 font-medium">操作</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className="border-b border-white/5">
-                            <td className="py-3 px-4 font-mono text-sm">S001-VIP3-12M-7K9M</td>
-                            <td className="py-3 px-4">张三</td>
-                            <td className="py-3 px-4">年卡</td>
-                            <td className="py-3 px-4">12个月</td>
-                            <td className="py-3 px-4"><span className="text-green-400">已使用</span></td>
-                            <td className="py-3 px-4">
-                              <button className="text-brand-400 hover:underline">查看</button>
-                            </td>
-                          </tr>
-                          <tr className="border-b border-white/5">
-                            <td className="py-3 px-4 font-mono text-sm">S001-VIP1-1M-ABCD</td>
-                            <td className="py-3 px-4">张三</td>
-                            <td className="py-3 px-4">月卡</td>
-                            <td className="py-3 px-4">1个月</td>
-                            <td className="py-3 px-4"><span className="text-yellow-400">未使用</span></td>
-                            <td className="py-3 px-4">
-                              <button className="text-brand-400 hover:underline">禁用</button>
-                            </td>
-                          </tr>
-                          <tr>
-                            <td className="py-3 px-4 font-mono text-sm">S002-VIP2-3M-EFGH</td>
-                            <td className="py-3 px-4">李四</td>
-                            <td className="py-3 px-4">季卡</td>
-                            <td className="py-3 px-4">3个月</td>
-                            <td className="py-3 px-4"><span className="text-yellow-400">未使用</span></td>
-                            <td className="py-3 px-4">
-                              <button className="text-brand-400 hover:underline">禁用</button>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </PageWrapper>
-        );
-    }
-  };
+// ════════════════════════════════════════════════════════════════════════════
+// 价格页
+// ════════════════════════════════════════════════════════════════════════════
+function PricingPage({ user, openPayModal, navigate }: { user: User | null; openPayModal: (p: PayingPlan) => void; navigate: (p: Page) => void }) {
+  const [selectedPeriods, setSelectedPeriods] = useState<Record<string, number>>({ VIP1: 0, VIP3: 0 });
 
   return (
-    <div className="min-h-screen font-sans bg-brand-950 grid-bg">
-      {/* Background */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-brand-950 via-transparent to-brand-950 opacity-80" />
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-brand-600/10 blur-[150px] rounded-full" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[40%] h-[40%] bg-brand-400/5 blur-[100px] rounded-full" />
+    <div style={{ maxWidth: 1000, margin: '0 auto', padding: '60px 24px' }}>
+      <h2 style={{ textAlign: 'center', fontSize: 36, fontWeight: 700, marginBottom: 12 }}>选择套餐</h2>
+      <p style={{ textAlign: 'center', color: '#64748b', marginBottom: 56 }}>按需选择，付款后立即激活 · 到期自动顺延</p>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 32 }}>
+        {PKG_PLANS.map(plan => {
+          const periodIdx = selectedPeriods[plan.id] ?? 0;
+          const selPeriod = plan.prices[periodIdx];
+          const isCurrentPlan = user?.package_type === plan.id && user?.is_activated;
+
+          return (
+            <div key={plan.id} style={{
+              background: '#0d0d20',
+              border: `2px solid ${plan.highlight ? plan.color : '#1e293b'}`,
+              borderRadius: 16, padding: 32, position: 'relative',
+            }}>
+              {plan.highlight && (
+                <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: plan.color, color: '#fff', padding: '4px 16px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
+                  推荐
+                </div>
+              )}
+              <h3 style={{ fontSize: 24, fontWeight: 700, color: plan.color, marginBottom: 8 }}>{plan.name}</h3>
+              <p style={{ color: '#64748b', marginBottom: 20, fontSize: 14 }}>{plan.desc}</p>
+
+              {/* 时长选择 */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+                {plan.prices.map((pp, idx) => (
+                  <button key={pp.period} onClick={() => setSelectedPeriods(prev => ({ ...prev, [plan.id]: idx }))}
+                    style={{ flex: 1, padding: '8px 4px', borderRadius: 8, border: `1px solid ${periodIdx === idx ? plan.color : '#334155'}`, background: periodIdx === idx ? `${plan.color}22` : 'transparent', color: periodIdx === idx ? plan.color : '#64748b', cursor: 'pointer', fontSize: 13, fontWeight: periodIdx === idx ? 600 : 400 }}>
+                    {pp.period}
+                    {pp.months >= 12 && <span style={{ display: 'block', fontSize: 11, color: '#4ade80' }}>省最多</span>}
+                  </button>
+                ))}
+              </div>
+
+              {/* 价格 */}
+              <div style={{ marginBottom: 24 }}>
+                <span style={{ fontSize: 40, fontWeight: 800, color: '#e2e8f0' }}>¥{selPeriod.price}</span>
+                <span style={{ color: '#64748b', marginLeft: 8, fontSize: 14 }}>{selPeriod.months === 1 ? '/月' : `/${selPeriod.months}个月`}</span>
+                {selPeriod.months > 1 && (
+                  <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>
+                    约 ¥{Math.round(selPeriod.price / selPeriod.months)}/月
+                  </div>
+                )}
+              </div>
+
+              {/* 功能列表 */}
+              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px' }}>
+              {plan.features.map(f => (
+                f === '——'
+                  ? <li key={f} style={{ borderTop: '1px solid #1e293b', margin: '8px 0', listStyle: 'none' }} />
+                  : <li key={f} style={{ padding: '5px 0', color: f.startsWith('🔒') ? '#475569' : '#94a3b8', fontSize: 13 }}>{f}</li>
+              ))}
+              </ul>
+
+              {isCurrentPlan ? (
+                <div style={{ textAlign: 'center', padding: '12px', background: `${plan.color}22`, borderRadius: 8, color: plan.color, fontWeight: 600 }}>
+                  ✓ 当前套餐（剩余 {user?.days_left ?? 0} 天）
+                </div>
+              ) : (
+                <button onClick={() => openPayModal({ name: plan.name, packageType: plan.id, period: selPeriod.period, price: selPeriod.price, months: selPeriod.months })}
+                  style={{ width: '100%', padding: 14, borderRadius: 8, border: 'none', background: plan.highlight ? `linear-gradient(135deg,${plan.color},#a855f7)` : plan.color, color: '#fff', fontSize: 16, fontWeight: 600, cursor: 'pointer' }}>
+                  {user ? (isCurrentPlan ? '续费' : '立即购买') : '登录后购买'}
+                </button>
+              )}
+              {isCurrentPlan && (
+                <button onClick={() => openPayModal({ name: plan.name, packageType: plan.id, period: selPeriod.period, price: selPeriod.price, months: selPeriod.months })}
+                  style={{ width: '100%', marginTop: 10, padding: 10, borderRadius: 8, border: `1px solid ${plan.color}`, background: 'transparent', color: plan.color, fontSize: 14, cursor: 'pointer' }}>
+                  续费
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Navigation */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? 'py-3 glass border-b border-white/5' : 'py-5 bg-transparent'
-      }`}>
-        <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentPage('home')}>
-            <LogoNA className="w-9 h-9" />
-            <div>
-              <span className="text-lg font-semibold block leading-none">星空AI</span>
-              <span className="text-[9px] text-brand-400 tracking-wider">智能门店经营助手</span>
-            </div>
-          </div>
-
-          <div className="hidden md:flex items-center gap-8">
-            {[
-              { id: 'home', label: '首页' },
-              { id: 'features', label: '功能' },
-              { id: 'pricing', label: '价格' },
-              { id: 'download', label: '下载' }
-            ].map((item) => (
-              <button 
-                key={item.id} 
-                onClick={() => setCurrentPage(item.id as Page)}
-                className={`text-sm transition-colors ${
-                  currentPage === item.id ? 'text-brand-400' : 'text-white/50 hover:text-white'
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setCurrentPage('login')}
-              className="text-sm text-white/50 hover:text-white transition-colors"
-            >
-              登录
-            </button>
-            <TechButton primary size="sm" onClick={() => setCurrentPage('pricing')}>
-              立即咨询
-            </TechButton>
-          </div>
-        </div>
-      </nav>
-
-      <main className="relative">
-        <AnimatePresence mode="wait">
-          {renderPage()}
-        </AnimatePresence>
-      </main>
-
-      {/* Footer */}
-      <footer className="py-12 px-6 border-t border-white/5">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-3">
-            <LogoNA className="w-8 h-8" />
-            <span className="text-sm font-medium">星空AI · 智能门店经营助手</span>
-          </div>
-          <div className="flex gap-6 text-xs text-white/30">
-            <a href="#" className="hover:text-white">隐私政策</a>
-            <a href="#" className="hover:text-white">服务条款</a>
-            <a href="#" className="hover:text-white">联系我们</a>
-          </div>
-        </div>
-      </footer>
+      <p style={{ textAlign: 'center', color: '#475569', marginTop: 40, fontSize: 14 }}>
+        需要定制方案？<button onClick={() => navigate('contact')} style={{ background: 'none', border: 'none', color: '#6366f1', cursor: 'pointer', textDecoration: 'underline', fontSize: 14 }}>联系我们</button>
+      </p>
     </div>
   );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 联系/定制表单
+// ════════════════════════════════════════════════════════════════════════════
+function ContactPage({ user, token }: { user: User | null; token: string }) {
+  const [form, setForm] = useState({ customer_name: '', contact: user?.phone || '', plan: '定制方案', description: '', sales_code: '' });
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [err, setErr] = useState('');
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true); setErr('');
+    try {
+      await apiRequest('/orders', { method: 'POST', body: JSON.stringify(form) }, token);
+      setSuccess(true);
+    } catch (e: any) { setErr(e.message); }
+    setLoading(false);
+  }
+
+  if (success) return (
+    <div style={{ maxWidth: 500, margin: '100px auto', textAlign: 'center', padding: 24 }}>
+      <div style={{ fontSize: 60 }}>✅</div>
+      <h2 style={{ marginTop: 16 }}>提交成功！</h2>
+      <p style={{ color: '#64748b' }}>我们会在 24 小时内与您联系</p>
+    </div>
+  );
+
+  return (
+    <div style={{ maxWidth: 600, margin: '60px auto', padding: '0 24px' }}>
+      <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8 }}>定制方案</h2>
+      <p style={{ color: '#64748b', marginBottom: 32 }}>填写需求，我们为您量身定制</p>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <Input label="公司/姓名 *" value={form.customer_name} onChange={v => setForm(p => ({ ...p, customer_name: v }))} />
+        <Input label="联系方式 *" value={form.contact} onChange={v => setForm(p => ({ ...p, contact: v }))} />
+        <Input label="需求描述" value={form.description} onChange={v => setForm(p => ({ ...p, description: v }))} textarea />
+        <Input label="销售码（如有）" value={form.sales_code} onChange={v => setForm(p => ({ ...p, sales_code: v }))} placeholder="如 A001" />
+        {err && <div style={{ background: '#1f0000', border: '1px solid #7f1d1d', borderRadius: 8, padding: 12, color: '#fca5a5', fontSize: 14 }}>{err}</div>}
+        <button type="submit" disabled={loading} style={{ background: 'linear-gradient(135deg,#6366f1,#a855f7)', border: 'none', color: '#fff', borderRadius: 8, padding: '14px', fontSize: 16, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+          {loading ? '提交中...' : '提交需求'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 登录页
+// ════════════════════════════════════════════════════════════════════════════
+function LoginPage({ token, setToken, setUser, navigate }: any) {
+  const [phone, setPhone] = useState('');
+  const [pw, setPw] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => { if (token) navigate('profile'); }, [token]);
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault(); setLoading(true); setErr('');
+    try {
+      const data = await apiRequest<{ token: string; user: User }>('/auth/login', { method: 'POST', body: JSON.stringify({ phone, password: pw }) });
+      localStorage.setItem('token', data.token); setToken(data.token); setUser(data.user); navigate('profile');
+    } catch (e: any) { setErr(e.message); }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{ maxWidth: 400, margin: '80px auto', padding: '0 24px' }}>
+      <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8, textAlign: 'center' }}>登录</h2>
+      <p style={{ color: '#64748b', textAlign: 'center', marginBottom: 32 }}>欢迎回来</p>
+      <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16, background: '#0d0d20', border: '1px solid #1e293b', borderRadius: 16, padding: 32 }}>
+        <Input label="手机号" value={phone} onChange={setPhone} type="tel" />
+        <Input label="密码" value={pw} onChange={setPw} type="password" />
+        {err && <ErrBox msg={err} />}
+        <button type="submit" disabled={loading} style={btnStyle(loading)}>
+          {loading ? '登录中...' : '登录'}
+        </button>
+        <button type="button" onClick={() => navigate('register')} style={{ background: 'none', border: 'none', color: '#6366f1', cursor: 'pointer', fontSize: 14 }}>
+          没有账号？立即注册
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 注册页（手机号 + 验证码 + 密码 + 销售码[选填]）
+// ════════════════════════════════════════════════════════════════════════════
+function RegisterPage({ setToken, navigate }: any) {
+  const [phone, setPhone] = useState('');
+  const [smsCode, setSmsCode] = useState('');
+  const [pw, setPw] = useState('');
+  const [salesCode, setSalesCode] = useState('');
+  const [smsLoading, setSmsLoading] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+  const [smsTip, setSmsTip] = useState('');
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const t = setTimeout(() => setCountdown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [countdown]);
+
+  async function sendSms() {
+    if (countdown > 0 || !phone) return;
+    setSmsLoading(true); setErr(''); setSmsTip('');
+    try {
+      const d = await apiRequest<{ code?: string; message?: string }>('/sms/send', { method: 'POST', body: JSON.stringify({ phone }) });
+      setCountdown(60);
+      if (d.code) setSmsTip(`开发模式验证码：${d.code}`);
+      else setSmsTip(d.message || '验证码已发送');
+    } catch (e: any) { setErr(e.message); }
+    setSmsLoading(false);
+  }
+
+  async function handleRegister(e: React.FormEvent) {
+    e.preventDefault(); setLoading(true); setErr('');
+    try {
+      const data = await apiRequest<{ token: string }>('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ phone, password: pw, smsCode, salesCode: salesCode.trim().toUpperCase() || undefined }),
+      });
+      localStorage.setItem('token', data.token); setToken(data.token); navigate('profile');
+    } catch (e: any) { setErr(e.message); }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{ maxWidth: 440, margin: '60px auto', padding: '0 24px' }}>
+      <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8, textAlign: 'center' }}>注册账号</h2>
+      <p style={{ color: '#64748b', textAlign: 'center', marginBottom: 32 }}>注册后购买套餐即可立即激活</p>
+      <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 16, background: '#0d0d20', border: '1px solid #1e293b', borderRadius: 16, padding: 32 }}>
+        {/* 手机号 */}
+        <Input label="手机号 *" value={phone} onChange={setPhone} type="tel" placeholder="请输入11位手机号" />
+
+        {/* 验证码 */}
+        <div>
+          <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 14 }}>短信验证码 *</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input value={smsCode} onChange={e => setSmsCode(e.target.value)} placeholder="6位验证码" maxLength={6}
+              style={{ flex: 1, background: '#1e293b', border: '1px solid #334155', borderRadius: 8, padding: '10px 12px', color: '#e2e8f0', fontSize: 14, outline: 'none' }} />
+            <button type="button" onClick={sendSms} disabled={smsLoading || countdown > 0 || !phone}
+              style={{ whiteSpace: 'nowrap', padding: '10px 14px', borderRadius: 8, border: 'none', background: countdown > 0 ? '#1e293b' : '#4f46e5', color: countdown > 0 ? '#64748b' : '#fff', cursor: countdown > 0 ? 'not-allowed' : 'pointer', fontSize: 13 }}>
+              {smsLoading ? '发送中' : countdown > 0 ? `${countdown}s` : '获取验证码'}
+            </button>
+          </div>
+          {smsTip && <div style={{ marginTop: 6, fontSize: 13, color: '#4ade80' }}>{smsTip}</div>}
+        </div>
+
+        {/* 密码 */}
+        <Input label="密码 *（至少6位）" value={pw} onChange={setPw} type="password" placeholder="设置登录密码" />
+
+        {/* 销售码 */}
+        <div>
+          <Input label="销售码（选填）" value={salesCode} onChange={setSalesCode} placeholder="如 A001，没有可不填" />
+          <p style={{ margin: '4px 0 0', fontSize: 12, color: '#475569' }}>由销售人员提供，绑定后不可更改</p>
+        </div>
+
+        {err && <ErrBox msg={err} />}
+        <button type="submit" disabled={loading} style={btnStyle(loading)}>
+          {loading ? '注册中...' : '立即注册'}
+        </button>
+        <button type="button" onClick={() => navigate('login')} style={{ background: 'none', border: 'none', color: '#6366f1', cursor: 'pointer', fontSize: 14 }}>
+          已有账号？去登录
+        </button>
+      </form>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 个人中心
+// ════════════════════════════════════════════════════════════════════════════
+function ProfilePage({ user, token, loadUser, openPayModal, navigate }: any) {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!token) { navigate('login'); return; }
+    apiRequest<any[]>('/user/orders', {}, token).then(setOrders).catch(() => {});
+  }, [token]);
+
+  function copyLicense() {
+    if (!user?.license_key) return;
+    navigator.clipboard.writeText(user.license_key).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  // 计算升级抵扣金额（基础版日单价 ¥99/30 天，四舍五入）
+  function calcCredit(daysLeft: number) {
+    return Math.round(daysLeft * (99 / 30));
+  }
+
+  function openUpgradeModal(months: number, price: number, period: string) {
+    const daysLeft = user?.days_left ?? 0;
+    const credit = calcCredit(daysLeft);
+    const finalPrice = Math.max(0, price - credit);
+    openPayModal({
+      name: '升级专业版',
+      packageType: 'VIP3',
+      period,
+      price,
+      months,
+      isUpgrade: true,
+      credit,
+      finalPrice,
+    });
+  }
+
+  if (!user) return <div style={{ textAlign: 'center', padding: 80, color: '#64748b' }}>加载中...</div>;
+
+  const pkgLabel = user.package_type === 'VIP3' ? '专业版' : user.package_type === 'VIP1' ? '基础版' : '未激活';
+  const isVip3  = user.is_activated && user.package_type === 'VIP3';
+  const isVip1  = user.is_activated && user.package_type === 'VIP1';
+
+  return (
+    <div style={{ maxWidth: 800, margin: '40px auto', padding: '0 24px' }}>
+      <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 32 }}>个人中心</h2>
+
+      {/* 账户状态 */}
+      <div style={{ background: '#0d0d20', border: '1px solid #1e293b', borderRadius: 16, padding: 28, marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>
+              📱 {user.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}
+            </div>
+            {user.sales_name && (
+              <div style={{ fontSize: 13, color: '#64748b', marginBottom: 4 }}>
+                归属销售：{user.sales_name}（{user.sales_code}）
+              </div>
+            )}
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{
+              display: 'inline-block', padding: '6px 16px', borderRadius: 20, fontWeight: 600,
+              background: user.is_activated ? 'rgba(74,222,128,0.15)' : 'rgba(100,116,139,0.2)',
+              color: user.is_activated ? '#4ade80' : '#64748b', fontSize: 14,
+            }}>
+              {user.is_activated ? `✓ ${pkgLabel}` : '⊘ 未激活'}
+            </div>
+          </div>
+        </div>
+
+        {user.is_activated && user.expire_date && (
+          <div style={{ marginTop: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 16 }}>
+            <StatCard label="套餐状态" value={pkgLabel} color="#6366f1" />
+            <StatCard label="到期时间" value={new Date(user.expire_date).toLocaleDateString('zh-CN')} color="#f59e0b" />
+            <StatCard label="剩余天数" value={`${user.days_left ?? 0} 天`} color={user.days_left && user.days_left < 10 ? '#ef4444' : '#4ade80'} />
+          </div>
+        )}
+
+        {/* 软件授权码 */}
+        {user.license_key && (
+          <div style={{ marginTop: 20, padding: '16px 20px', background: '#0a0a1a', borderRadius: 12, border: '1px solid #334155' }}>
+            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+              🔑 <span style={{ fontWeight: 600, color: '#94a3b8' }}>桌面软件授权码</span>
+              <span style={{ fontSize: 11, color: '#475569' }}>· 与手机号唯一绑定，请勿泄露</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <code style={{
+                flex: 1, fontSize: 20, fontWeight: 700, letterSpacing: 4,
+                color: '#a5b4fc', background: '#1e293b', padding: '10px 16px',
+                borderRadius: 8, border: '1px solid #334155', userSelect: 'all',
+              }}>
+                {user.license_key}
+              </code>
+              <button onClick={copyLicense}
+                style={{ padding: '10px 18px', borderRadius: 8, border: 'none', background: copied ? '#16a34a' : '#4f46e5', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: 14, whiteSpace: 'nowrap', transition: 'background 0.2s' }}>
+                {copied ? '✓ 已复制' : '复制'}
+              </button>
+            </div>
+            <div style={{ marginTop: 8, fontSize: 12, color: '#475569' }}>
+              在桌面软件的"激活"界面粘贴此码即可绑定使用 · 续费后授权码不变，到期时间自动更新
+            </div>
+          </div>
+        )}
+
+        {!user.license_key && user.is_activated === 0 && (
+          <div style={{ marginTop: 16, padding: '12px 16px', background: 'rgba(234,179,8,0.08)', borderRadius: 10, border: '1px solid rgba(234,179,8,0.2)', fontSize: 13, color: '#eab308' }}>
+            💡 购买套餐后将自动生成您的专属软件授权码
+          </div>
+        )}
+
+        {/* 基础版 → 一键升级专业版 */}
+        {isVip1 && (
+          <div style={{ marginTop: 20, padding: 20, background: 'linear-gradient(135deg,rgba(245,158,11,0.08),rgba(168,85,247,0.08))', borderRadius: 12, border: '1px solid rgba(245,158,11,0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: '#f59e0b' }}>⚡ 升级到专业版</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>解锁 AI 营销 · 经营分析 · 财务报税</div>
+              </div>
+              {(user.days_left ?? 0) > 0 && (
+                <div style={{ textAlign: 'right', fontSize: 12 }}>
+                  <div style={{ color: '#4ade80' }}>可抵扣 ¥{calcCredit(user.days_left ?? 0)}</div>
+                  <div style={{ color: '#475569', marginTop: 2 }}>剩余 {user.days_left} 天 × ¥{(99/30).toFixed(1)}/天</div>
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+              {[
+                { period: '月付', months: 1,  price: 299  },
+                { period: '季付', months: 3,  price: 888  },
+                { period: '年付', months: 12, price: 3388 },
+              ].map(opt => {
+                const credit = calcCredit(user.days_left ?? 0);
+                const final  = Math.max(0, opt.price - credit);
+                return (
+                  <button key={opt.period} onClick={() => openUpgradeModal(opt.months, opt.price, opt.period)}
+                    style={{ padding: '10px 6px', borderRadius: 8, border: '1px solid rgba(245,158,11,0.3)', background: 'rgba(245,158,11,0.05)', cursor: 'pointer', textAlign: 'center' }}>
+                    <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>{opt.period}</div>
+                    {credit > 0 && (
+                      <div style={{ fontSize: 11, color: '#475569', textDecoration: 'line-through' }}>¥{opt.price}</div>
+                    )}
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#f59e0b' }}>¥{final}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {isVip3 && (
+          <div style={{ marginTop: 20, padding: 16, background: '#0a0a1a', borderRadius: 10, border: '1px solid #1e293b' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 600 }}>本月 AI 额度</div>
+              <div style={{ fontSize: 11, color: '#475569' }}>购买加速包可立即追加次数</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
+              <QuotaBar label="AI 生图" remaining={user.ai_image_quota ?? 0} base={20} color="#6366f1" />
+              <QuotaBar label="AI 视频" remaining={user.ai_video_quota ?? 0} base={15} color="#a855f7" />
+              <QuotaBar label="AI 剪辑" remaining={user.ai_edit_quota  ?? 0} base={15} color="#ec4899" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 购买/续费区 */}
+      <div style={{ background: '#0d0d20', border: '1px solid #1e293b', borderRadius: 16, padding: 28, marginBottom: 24 }}>
+        <h3 style={{ fontWeight: 600, marginBottom: 20 }}>购买 / 续费套餐</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 16 }}>
+          {PKG_PLANS.map(plan => (
+            <div key={plan.id} style={{ border: `1px solid ${plan.highlight ? plan.color : '#1e293b'}`, borderRadius: 12, padding: 20 }}>
+              <div style={{ fontWeight: 600, color: plan.color, marginBottom: 10 }}>{plan.name}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {plan.prices.map(pp => (
+                  <button key={pp.period} onClick={() => openPayModal({ name: plan.name, packageType: plan.id, period: pp.period, price: pp.price, months: pp.months })}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 8, border: '1px solid #334155', background: '#0a0a1a', color: '#e2e8f0', cursor: 'pointer', fontSize: 14 }}>
+                    <span>{pp.period}</span>
+                    <span style={{ color: plan.color, fontWeight: 600 }}>¥{pp.price}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {/* AI 加速包（仅专业版用户） */}
+          {isVip3 && (
+            <div style={{ border: '1px solid #ec4899', borderRadius: 12, padding: 20 }}>
+              <div style={{ fontWeight: 600, color: '#ec4899', marginBottom: 6 }}>🚀 AI 加速包</div>
+              <div style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>+10图片 / +10视频 / +10编辑（立即生效）</div>
+              <button onClick={() => openPayModal({ name: 'AI 加速包', packageType: 'ADDON', period: '一次性', price: ADDON.price, months: 0 })}
+                style={{ width: '100%', padding: '10px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#ec4899,#f97316)', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 15 }}>
+                ¥88 立即购买
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 订单记录 */}
+      <div style={{ background: '#0d0d20', border: '1px solid #1e293b', borderRadius: 16, padding: 28 }}>
+        <h3 style={{ fontWeight: 600, marginBottom: 20 }}>订单记录</h3>
+        {orders.length === 0 ? (
+          <div style={{ color: '#475569', textAlign: 'center', padding: 24 }}>暂无订单</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {orders.map(o => (
+              <div key={o.id} style={{ background: '#0a0a1a', borderRadius: 10, padding: '14px 16px', border: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                <div>
+                  <div style={{ fontWeight: 500, fontSize: 15 }}>{o.plan}</div>
+                  <div style={{ fontSize: 12, color: '#475569', marginTop: 2 }}>{new Date(o.created_at).toLocaleDateString('zh-CN')}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  {o.amount && <span style={{ color: '#f59e0b', fontWeight: 600 }}>¥{o.amount}</span>}
+                  <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 12, background: o.status === 'paid' ? 'rgba(74,222,128,0.15)' : 'rgba(234,179,8,0.15)', color: o.status === 'paid' ? '#4ade80' : '#eab308' }}>
+                    {o.status === 'paid' ? '已完成' : '待处理'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 付款弹窗
+// ════════════════════════════════════════════════════════════════════════════
+function PayModal({ plan, loading, success, onPay, onClose }: {
+  plan: PayingPlan; loading: boolean;
+  success: { expire_date: string; days_left: number; package_type?: string } | null;
+  onPay: () => void; onClose: () => void;
+}) {
+  const payAmount = plan.isUpgrade ? (plan.finalPrice ?? plan.price) : plan.price;
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{ background: '#0d0d20', border: '1px solid #334155', borderRadius: 20, padding: 36, maxWidth: 420, width: '100%' }}>
+        {success ? (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 60, marginBottom: 16 }}>{plan.isUpgrade ? '🚀' : '🎉'}</div>
+            <h3 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8, color: '#4ade80' }}>
+              {plan.isUpgrade ? '升级成功！' : '激活成功！'}
+            </h3>
+            {plan.isUpgrade && (
+              <div style={{ marginBottom: 12, padding: '10px 16px', background: 'rgba(245,158,11,0.1)', borderRadius: 8, fontSize: 13, color: '#f59e0b' }}>
+                ✨ 已解锁：AI 营销工坊 · 经营分析 · 财务报税
+              </div>
+            )}
+            <p style={{ color: '#94a3b8', marginBottom: 4 }}>套餐：{success.package_type === 'VIP3' ? '专业版' : plan.name}</p>
+            <p style={{ color: '#94a3b8', marginBottom: 8 }}>到期时间：{new Date(success.expire_date).toLocaleDateString('zh-CN')}</p>
+            <p style={{ color: '#4ade80', fontSize: 18, fontWeight: 600, marginBottom: 24 }}>剩余 {success.days_left} 天</p>
+            <p style={{ color: '#475569', fontSize: 12, marginBottom: 20 }}>重启桌面软件后，新功能将自动解锁</p>
+            <button onClick={onClose} style={{ ...btnStyle(false), width: '100%' }}>返回个人中心</button>
+          </div>
+        ) : (
+          <>
+            <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
+              {plan.isUpgrade ? '⚡ 升级专业版' : '确认购买'}
+            </h3>
+            <p style={{ color: '#64748b', marginBottom: 20, fontSize: 14 }}>
+              {plan.isUpgrade ? '付款成功后立即升级，桌面软件重启后自动解锁新功能' : '扫码完成付款后，账户将立即激活'}
+            </p>
+
+            <div style={{ background: '#0a0a1a', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ color: '#64748b' }}>套餐</span>
+                <span style={{ fontWeight: 600 }}>{plan.isUpgrade ? '专业版' : plan.name}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ color: '#64748b' }}>时长</span>
+                <span>{plan.period}{plan.months > 0 ? `（${plan.months}个月）` : ''}</span>
+              </div>
+              {/* 升级专属：抵扣明细 */}
+              {plan.isUpgrade && plan.credit !== undefined && plan.credit > 0 && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ color: '#64748b' }}>原价</span>
+                    <span style={{ color: '#475569', textDecoration: 'line-through' }}>¥{plan.price}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, padding: '6px 10px', background: 'rgba(74,222,128,0.08)', borderRadius: 6 }}>
+                    <span style={{ color: '#4ade80', fontSize: 13 }}>基础版剩余天数抵扣</span>
+                    <span style={{ color: '#4ade80', fontWeight: 600 }}>-¥{plan.credit}</span>
+                  </div>
+                </>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #1e293b', paddingTop: 10, marginTop: 4 }}>
+                <span style={{ color: '#64748b' }}>实付金额</span>
+                <span style={{ fontSize: 26, fontWeight: 800, color: '#f59e0b' }}>¥{payAmount}</span>
+              </div>
+            </div>
+
+            {/* 二维码占位 */}
+            <div style={{ background: '#fff', borderRadius: 12, width: 160, height: 160, margin: '0 auto 20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+              <div style={{ fontSize: 48 }}>📱</div>
+              <div style={{ color: '#1e293b', fontSize: 12, marginTop: 8, textAlign: 'center' }}>微信/支付宝<br />扫码付款</div>
+            </div>
+            <p style={{ textAlign: 'center', color: '#64748b', fontSize: 12, marginBottom: 20 }}>付款完成后点击下方按钮立即生效</p>
+
+            <button onClick={onPay} disabled={loading} style={{ ...btnStyle(loading), width: '100%', fontSize: 16, padding: '14px' }}>
+              {loading ? (plan.isUpgrade ? '升级中...' : '激活中...') : `✓ 我已完成付款 · 立即${plan.isUpgrade ? '升级' : '激活'}`}
+            </button>
+            <button onClick={onClose} style={{ width: '100%', marginTop: 10, background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 14, padding: '8px' }}>取消</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 管理员后台
+// ════════════════════════════════════════════════════════════════════════════
+function AdminPage({ token: userToken }: { token: string }) {
+  const [adminToken, setAdminToken] = useState(localStorage.getItem('adminToken') || '');
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+  const [loginErr, setLoginErr] = useState('');
+  const [tab, setTab] = useState<'orders' | 'users' | 'sales' | 'content'>('orders');
+  const [orders, setOrders] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [sales, setSales] = useState<any[]>([]);
+  const [content, setContent] = useState<any[]>([]);
+  const [editedContent, setEditedContent] = useState<Record<string, string>>({});
+  const [newSales, setNewSales] = useState({ name: '', code_prefix: '', phone: '', password: '' });
+  const [msg, setMsg] = useState('');
+
+  const adminHeaders = { 'X-Admin-Token': adminToken };
+
+  async function adminGet<T>(path: string): Promise<T> {
+    const r = await fetch(`/api${path}`, { headers: { ...adminHeaders } });
+    const t = await r.text(); const d = t ? JSON.parse(t) : {};
+    if (!r.ok) throw new Error(d.error || 'Error');
+    return d as T;
+  }
+  async function adminPost<T>(path: string, body: any): Promise<T> {
+    const r = await fetch(`/api${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...adminHeaders }, body: JSON.stringify(body) });
+    const t = await r.text(); const d = t ? JSON.parse(t) : {};
+    if (!r.ok) throw new Error(d.error || 'Error');
+    return d as T;
+  }
+
+  async function adminLogin(e: React.FormEvent) {
+    e.preventDefault(); setLoginErr('');
+    try {
+      const d = await apiRequest<{ token: string }>('/admin/login', { method: 'POST', body: JSON.stringify(loginForm) });
+      localStorage.setItem('adminToken', d.token); setAdminToken(d.token);
+    } catch (e: any) { setLoginErr(e.message); }
+  }
+
+  useEffect(() => {
+    if (!adminToken) return;
+    if (tab === 'orders') adminGet<any[]>('/admin/orders').then(setOrders).catch(() => {});
+    if (tab === 'users')  adminGet<any[]>('/admin/users').then(setUsers).catch(() => {});
+    if (tab === 'sales')  adminGet<any[]>('/admin/sales').then(setSales).catch(() => {});
+    if (tab === 'content') adminGet<any[]>('/admin/content').then(c => { setContent(c); const m: Record<string,string>={};c.forEach((x:any)=>m[x.key]=x.value);setEditedContent(m); }).catch(() => {});
+  }, [adminToken, tab]);
+
+  if (!adminToken) return (
+    <div style={{ maxWidth: 380, margin: '80px auto', padding: '0 24px' }}>
+      <h2 style={{ textAlign: 'center', fontSize: 24, fontWeight: 700, marginBottom: 24 }}>管理员登录</h2>
+      <form onSubmit={adminLogin} style={{ background: '#0d0d20', border: '1px solid #1e293b', borderRadius: 16, padding: 28, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <Input label="用户名" value={loginForm.username} onChange={v => setLoginForm(p => ({ ...p, username: v }))} />
+        <Input label="密码" value={loginForm.password} onChange={v => setLoginForm(p => ({ ...p, password: v }))} type="password" />
+        {loginErr && <ErrBox msg={loginErr} />}
+        <button type="submit" style={btnStyle(false)}>登录</button>
+      </form>
+    </div>
+  );
+
+  return (
+    <div style={{ maxWidth: 1100, margin: '32px auto', padding: '0 24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <h2 style={{ fontSize: 24, fontWeight: 700 }}>管理后台</h2>
+        <button onClick={() => { localStorage.removeItem('adminToken'); setAdminToken(''); }} style={{ background: 'none', border: '1px solid #334155', color: '#94a3b8', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>退出</button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid #1e293b', paddingBottom: 12 }}>
+        {(['orders', 'users', 'sales', 'content'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: tab === t ? '#4f46e5' : '#1e293b', color: tab === t ? '#fff' : '#94a3b8', cursor: 'pointer', fontSize: 14 }}>
+            {{ orders: '📦 订单', users: '👥 用户', sales: '🏷️ 销售', content: '📝 内容' }[t]}
+          </button>
+        ))}
+      </div>
+
+      {/* 订单 */}
+      {tab === 'orders' && (
+        <TableWrap headers={['#', '客户', '联系', '套餐', '金额', '状态', '销售', '到期', '时间']}>
+          {orders.map(o => (
+            <tr key={o.id} style={{ borderBottom: '1px solid #1e293b' }}>
+              <td style={td}>{o.id}</td>
+              <td style={td}>{o.customer_name}</td>
+              <td style={td}>{o.contact}</td>
+              <td style={td}>{o.plan}</td>
+              <td style={td}>{o.amount ? `¥${o.amount}` : '-'}</td>
+              <td style={td}><StatusBadge s={o.status} /></td>
+              <td style={td}>{o.sales_code || '-'}</td>
+              <td style={td}>{o.user_expire_date ? new Date(o.user_expire_date).toLocaleDateString('zh-CN') : '-'}</td>
+              <td style={td}>{new Date(o.created_at).toLocaleDateString('zh-CN')}</td>
+            </tr>
+          ))}
+        </TableWrap>
+      )}
+
+      {/* 用户 */}
+      {tab === 'users' && (
+        <TableWrap headers={['手机', '套餐', '到期', '剩余天数', '归属销售', '注册时间']}>
+          {users.map(u => (
+            <tr key={u.id} style={{ borderBottom: '1px solid #1e293b' }}>
+              <td style={td}>{u.phone}</td>
+              <td style={td}>{u.is_activated ? (u.package_type === 'VIP3' ? '专业版' : '基础版') : '未激活'}</td>
+              <td style={td}>{u.expire_date ? new Date(u.expire_date).toLocaleDateString('zh-CN') : '-'}</td>
+              <td style={{ ...td, color: u.days_left < 10 ? '#ef4444' : '#4ade80' }}>
+                {u.expire_date ? `${u.days_left}天` : '-'}
+              </td>
+              <td style={td}>{u.sales_code ? `${u.sales_name}（${u.sales_code}）` : '直销'}</td>
+              <td style={td}>{new Date(u.created_at).toLocaleDateString('zh-CN')}</td>
+            </tr>
+          ))}
+        </TableWrap>
+      )}
+
+      {/* 销售管理 */}
+      {tab === 'sales' && (
+        <div>
+          <div style={{ background: '#0d0d20', border: '1px solid #1e293b', borderRadius: 12, padding: 20, marginBottom: 20 }}>
+            <h4 style={{ marginBottom: 14 }}>添加销售</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10 }}>
+              {(['name', 'code_prefix', 'phone', 'password'] as const).map(k => (
+                <input key={k} placeholder={{ name: '姓名', code_prefix: '销售码（如B001）', phone: '手机号', password: '密码' }[k]}
+                  value={newSales[k]} onChange={e => setNewSales(p => ({ ...p, [k]: e.target.value }))}
+                  style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, padding: '10px 12px', color: '#e2e8f0', fontSize: 14 }} />
+              ))}
+            </div>
+            <button onClick={async () => {
+              try { await adminPost('/admin/sales', newSales); const s = await adminGet<any[]>('/admin/sales'); setSales(s); setNewSales({ name: '', code_prefix: '', phone: '', password: '' }); setMsg('添加成功'); setTimeout(() => setMsg(''), 2000); }
+              catch (e: any) { setMsg(e.message); }
+            }} style={{ ...btnStyle(false), marginTop: 12, padding: '10px 24px' }}>添加销售</button>
+            {msg && <span style={{ marginLeft: 12, color: '#4ade80', fontSize: 14 }}>{msg}</span>}
+          </div>
+          <TableWrap headers={['#', '姓名', '销售码', '手机', '创建时间', '操作']}>
+            {sales.map(s => (
+              <tr key={s.id} style={{ borderBottom: '1px solid #1e293b' }}>
+                <td style={td}>{s.id}</td>
+                <td style={td}>{s.name}</td>
+                <td style={td}><code style={{ background: '#1e293b', padding: '2px 8px', borderRadius: 4 }}>{s.code_prefix}</code></td>
+                <td style={td}>{s.phone || '-'}</td>
+                <td style={td}>{new Date(s.created_at).toLocaleDateString('zh-CN')}</td>
+                <td style={td}>
+                  <button onClick={async () => {
+                    if (!confirm('确认删除？')) return;
+                    await fetch(`/api/admin/sales/${s.id}`, { method: 'DELETE', headers: adminHeaders });
+                    const ss = await adminGet<any[]>('/admin/sales'); setSales(ss);
+                  }} style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}>删除</button>
+                </td>
+              </tr>
+            ))}
+          </TableWrap>
+        </div>
+      )}
+
+      {/* 内容管理 */}
+      {tab === 'content' && (
+        <div>
+          {content.map(c => (
+            <div key={c.key} style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 13 }}>{c.key}</label>
+              <textarea value={editedContent[c.key] ?? c.value}
+                onChange={e => setEditedContent(p => ({ ...p, [c.key]: e.target.value }))}
+                rows={2}
+                style={{ width: '100%', background: '#1e293b', border: '1px solid #334155', borderRadius: 8, padding: 10, color: '#e2e8f0', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }} />
+            </div>
+          ))}
+          <button onClick={async () => {
+            try {
+              await adminPost('/admin/content', { items: Object.entries(editedContent).map(([key, value]) => ({ key, value })) });
+              setMsg('保存成功'); setTimeout(() => setMsg(''), 2000);
+            } catch (e: any) { setMsg(e.message); }
+          }} style={{ ...btnStyle(false), padding: '10px 28px' }}>保存内容</button>
+          {msg && <span style={{ marginLeft: 12, color: '#4ade80', fontSize: 14 }}>{msg}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 销售后台
+// ════════════════════════════════════════════════════════════════════════════
+function SalesPage({ token: userToken }: { token: string }) {
+  const [salesToken, setSalesToken] = useState(localStorage.getItem('salesToken') || '');
+  const [loginForm, setLoginForm] = useState({ code_prefix: '', password: '' });
+  const [loginErr, setLoginErr] = useState('');
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [tab, setTab] = useState<'customers' | 'orders'>('customers');
+  const [orders, setOrders] = useState<any[]>([]);
+
+  async function salesGet<T>(path: string): Promise<T> {
+    const r = await fetch(`/api${path}`, { headers: { Authorization: `Bearer ${salesToken}` } });
+    const t = await r.text(); const d = t ? JSON.parse(t) : {};
+    if (!r.ok) throw new Error(d.error || 'Error');
+    return d as T;
+  }
+
+  async function salesLogin(e: React.FormEvent) {
+    e.preventDefault(); setLoginErr('');
+    try {
+      const d = await apiRequest<{ token: string }>('/sales/login', { method: 'POST', body: JSON.stringify(loginForm) });
+      localStorage.setItem('salesToken', d.token); setSalesToken(d.token);
+    } catch (e: any) { setLoginErr(e.message); }
+  }
+
+  useEffect(() => {
+    if (!salesToken) return;
+    if (tab === 'customers') salesGet<any[]>('/sales/customers').then(setCustomers).catch(() => {});
+    if (tab === 'orders')    salesGet<any[]>('/sales/orders').then(setOrders).catch(() => {});
+  }, [salesToken, tab]);
+
+  if (!salesToken) return (
+    <div style={{ maxWidth: 380, margin: '80px auto', padding: '0 24px' }}>
+      <h2 style={{ textAlign: 'center', fontSize: 24, fontWeight: 700, marginBottom: 24 }}>销售登录</h2>
+      <form onSubmit={salesLogin} style={{ background: '#0d0d20', border: '1px solid #1e293b', borderRadius: 16, padding: 28, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <Input label="销售码（如 A001）" value={loginForm.code_prefix} onChange={v => setLoginForm(p => ({ ...p, code_prefix: v.toUpperCase() }))} />
+        <Input label="密码" value={loginForm.password} onChange={v => setLoginForm(p => ({ ...p, password: v }))} type="password" />
+        {loginErr && <ErrBox msg={loginErr} />}
+        <button type="submit" style={btnStyle(false)}>登录</button>
+      </form>
+    </div>
+  );
+
+  return (
+    <div style={{ maxWidth: 900, margin: '32px auto', padding: '0 24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+        <h2 style={{ fontSize: 24, fontWeight: 700 }}>销售工作台</h2>
+        <button onClick={() => { localStorage.removeItem('salesToken'); setSalesToken(''); }} style={{ background: 'none', border: '1px solid #334155', color: '#94a3b8', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>退出</button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid #1e293b', paddingBottom: 12 }}>
+        {(['customers', 'orders'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: tab === t ? '#4f46e5' : '#1e293b', color: tab === t ? '#fff' : '#94a3b8', cursor: 'pointer', fontSize: 14 }}>
+            {{ customers: '👥 我的客户', orders: '📦 我的订单' }[t]}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'customers' && (
+        <TableWrap headers={['手机', '套餐', '到期时间', '剩余天数', '状态', '注册时间']}>
+          {customers.map(c => (
+            <tr key={c.id} style={{ borderBottom: '1px solid #1e293b' }}>
+              <td style={td}>{c.phone}</td>
+              <td style={td}>{c.is_activated ? (c.package_type === 'VIP3' ? '专业版' : '基础版') : '-'}</td>
+              <td style={td}>{c.expire_date ? new Date(c.expire_date).toLocaleDateString('zh-CN') : '-'}</td>
+              <td style={{ ...td, color: c.days_left < 10 ? '#ef4444' : '#4ade80' }}>
+                {c.expire_date ? `${c.days_left}天` : '-'}
+              </td>
+              <td style={td}><StatusBadge s={c.is_activated ? 'paid' : 'pending'} /></td>
+              <td style={td}>{new Date(c.created_at).toLocaleDateString('zh-CN')}</td>
+            </tr>
+          ))}
+        </TableWrap>
+      )}
+
+      {tab === 'orders' && (
+        <TableWrap headers={['#', '客户', '联系', '套餐', '金额', '状态', '时间']}>
+          {orders.map(o => (
+            <tr key={o.id} style={{ borderBottom: '1px solid #1e293b' }}>
+              <td style={td}>{o.id}</td>
+              <td style={td}>{o.customer_name}</td>
+              <td style={td}>{o.contact}</td>
+              <td style={td}>{o.plan}</td>
+              <td style={td}>{o.amount ? `¥${o.amount}` : '-'}</td>
+              <td style={td}><StatusBadge s={o.status} /></td>
+              <td style={td}>{new Date(o.created_at).toLocaleDateString('zh-CN')}</td>
+            </tr>
+          ))}
+        </TableWrap>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 通用小组件
+// ════════════════════════════════════════════════════════════════════════════
+function Input({ label, value, onChange, type = 'text', placeholder = '', textarea = false }: {
+  label: string; value: string; onChange: (v: string) => void;
+  type?: string; placeholder?: string; textarea?: boolean;
+}) {
+  const style: React.CSSProperties = { width: '100%', background: '#1e293b', border: '1px solid #334155', borderRadius: 8, padding: '10px 12px', color: '#e2e8f0', fontSize: 14, outline: 'none', boxSizing: 'border-box' };
+  return (
+    <div>
+      <label style={{ display: 'block', color: '#94a3b8', marginBottom: 6, fontSize: 14 }}>{label}</label>
+      {textarea
+        ? <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={3} style={{ ...style, resize: 'vertical' }} />
+        : <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={style} />}
+    </div>
+  );
+}
+
+function ErrBox({ msg }: { msg: string }) {
+  return <div style={{ background: '#1f0000', border: '1px solid #7f1d1d', borderRadius: 8, padding: '10px 14px', color: '#fca5a5', fontSize: 14 }}>{msg}</div>;
+}
+
+function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div style={{ background: '#0a0a1a', borderRadius: 10, padding: '12px 16px', textAlign: 'center' }}>
+      <div style={{ fontSize: 11, color: '#475569', marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color }}>{value}</div>
+    </div>
+  );
+}
+
+/**
+ * QuotaBar — 显示剩余次数
+ * base: 套餐基础额度 (20/15/15)
+ * remaining: 当前剩余次数 (可能因加速包 > base)
+ * 进度条反映"已用 = base - remaining"，若 remaining > base 说明有加速包额度，显示 +extra 标记
+ */
+function QuotaBar({ label, remaining, base, color }: { label: string; remaining: number; base: number; color: string }) {
+  const extra   = Math.max(0, remaining - base);        // 加速包多出来的部分
+  const baseUsed = Math.max(0, base - Math.min(remaining, base)); // 基础额度已用
+  const pct     = base > 0 ? Math.min(100, (baseUsed / base) * 100) : 0;
+  const isEmpty = remaining === 0;
+
+  return (
+    <div style={{ padding: '10px 12px', background: '#0f172a', borderRadius: 8, border: `1px solid ${isEmpty ? '#7f1d1d' : '#1e293b'}` }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
+        <span style={{ color: '#94a3b8' }}>{label}</span>
+        <span style={{ color: isEmpty ? '#ef4444' : color, fontWeight: 600 }}>
+          {remaining}次
+          {extra > 0 && <span style={{ fontSize: 10, color: '#f97316', marginLeft: 4 }}>+{extra}加速</span>}
+        </span>
+      </div>
+      {/* 进度条：显示基础额度已消耗比例 */}
+      <div style={{ height: 4, background: '#1e293b', borderRadius: 2 }}>
+        <div style={{ height: '100%', width: `${100 - pct}%`, background: isEmpty ? '#ef4444' : color, borderRadius: 2, transition: 'width 0.4s' }} />
+      </div>
+      <div style={{ fontSize: 10, color: '#475569', marginTop: 4 }}>
+        {isEmpty ? '已用完，请购买加速包' : `基础 ${base - baseUsed}/${base} 剩余`}
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ s }: { s: string }) {
+  const map: Record<string, { label: string; color: string; bg: string }> = {
+    paid:    { label: '已完成', color: '#4ade80', bg: 'rgba(74,222,128,0.15)' },
+    pending: { label: '待处理', color: '#eab308', bg: 'rgba(234,179,8,0.15)'  },
+    active:  { label: '已激活', color: '#4ade80', bg: 'rgba(74,222,128,0.15)' },
+  };
+  const info = map[s] || { label: s, color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' };
+  return <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 12, background: info.bg, color: info.color }}>{info.label}</span>;
+}
+
+function TableWrap({ headers, children }: { headers: string[]; children: React.ReactNode }) {
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+        <thead>
+          <tr style={{ background: '#0d0d20', borderBottom: '1px solid #1e293b' }}>
+            {headers.map(h => <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: '#64748b', fontWeight: 500, whiteSpace: 'nowrap' }}>{h}</th>)}
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  );
+}
+
+const td: React.CSSProperties = { padding: '12px 14px', color: '#94a3b8', verticalAlign: 'middle' };
+
+function btnStyle(loading: boolean): React.CSSProperties {
+  return {
+    background: loading ? '#3730a3' : 'linear-gradient(135deg,#6366f1,#a855f7)',
+    border: 'none', color: '#fff', borderRadius: 8, padding: '12px 24px',
+    fontSize: 15, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
+    opacity: loading ? 0.8 : 1,
+  };
 }
