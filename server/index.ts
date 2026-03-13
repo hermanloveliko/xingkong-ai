@@ -67,13 +67,20 @@ app.post('/api/orders', (req, res) => {
   });
 });
 
-// Admin: login (just validate token)
+// Admin: login with username and password
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'xingkong2026';
+
 app.post('/api/admin/login', (req, res) => {
-  const { token } = req.body || {};
-  if (!token || token !== ADMIN_TOKEN) {
-    return res.status(401).json({ error: '无效的管理令牌' });
+  const { username, password } = req.body || {};
+  if (!username || !password) {
+    return res.status(400).json({ error: '请提供用户名和密码' });
   }
-  res.json({ success: true });
+  if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
+    return res.status(401).json({ error: '用户名或密码错误' });
+  }
+  // Return the admin token
+  res.json({ token: ADMIN_TOKEN, success: true });
 });
 
 // Admin: get all content blocks
