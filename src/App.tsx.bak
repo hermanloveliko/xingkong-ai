@@ -48,7 +48,7 @@ import {
   Key
 } from 'lucide-react';
 
-type Page = 'home' | 'features' | 'pricing' | 'download' | 'login' | 'register' | 'profile' | 'activate' | 'admin';
+type Page = 'home' | 'features' | 'pricing' | 'download' | 'login' | 'register' | 'profile' | 'activate' | 'admin' | 'admin-login';
 
 // 轮播图图片 - 使用中文文件名
 const galleryImages = [
@@ -200,6 +200,27 @@ const ProblemCard = ({ title, description, oldWay, newWay }: { title: string, de
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
   const [isScrolled, setIsScrolled] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [token, setToken] = useState<string>(localStorage.getItem('token') || '');
+  const [isAdmin, setIsAdmin] = useState<boolean>(localStorage.getItem('isAdmin') === 'true');
+  
+  // 验证码倒计时状态
+  const [loginCountdown, setLoginCountdown] = useState(0);
+  const [registerCountdown, setRegisterCountdown] = useState(0);
+  const [activateCountdown, setActivateCountdown] = useState(0);
+  
+  // 激活流程步骤
+  const [activateStep, setActivateStep] = useState(1);
+  const [activateData, setActivateData] = useState({
+    phone: '',
+    code: '',
+    password: '',
+    confirmPassword: '',
+    activationCode: '',
+    businessLicense: null as File | null,
+  });
+  const [activationResult, setActivationResult] = useState<any>(null);
+  
   const [orderForm, setOrderForm] = useState({
     customer_name: '',
     contact: '',
@@ -207,6 +228,176 @@ export default function App() {
     description: '',
   });
   const [orderStatus, setOrderStatus] = useState<string | null>(null);
+
+  // 检查登录状态
+  useEffect(() => {
+    const savedToken = localStorage.getItem('token');
+    const savedUser = localStorage.getItem('user');
+    const savedAdmin = localStorage.getItem('isAdmin');
+    if (savedToken && savedUser) {
+      setToken(savedToken);
+      setUser(JSON.parse(savedUser));
+      setIsAdmin(savedAdmin === 'true');
+    }
+  }, []);
+
+  // API 基础配置
+  const API_BASE = 'http://59.110.10.226:4000';
+
+  // 发送验证码
+  const sendSMS = async (phone: string, setSending: (v: boolean) => void, setCountdown: (v: number) => void) => {
+    if (!phone || phone.length !== 11) {
+      alert('请输入正确的手机号');
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/sms/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('验证码已发送');
+        let count = 60;
+        setCountdown(count);
+        const interval = setInterval(() => {
+          count--;
+          setCountdown(count);
+          if (count <= 0) clearInterval(interval);
+        }, 1000);
+      } else {
+        alert(data.error || '发送失败');
+      }
+    } catch (err) {
+      alert('网络错误');
+    }
+    setSending(false);
+  };
+
+  // 登录
+  const handleLogin = async (phone: string, code: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, code }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setToken(data.token);
+        setUser(data.user);
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        setCurrentPage('profile');
+      } else {
+        alert(data.error || '登录失败');
+      }
+    } catch (err) {
+      alert('网络错误');
+    }
+  };
+
+  // 注册
+  const handleRegister = async (phone: string, code: string, password: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, code, password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setToken(data.token);
+        setUser(data.user);
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        setCurrentPage('profile');
+      } else {
+        alert(data.error || '注册失败');
+      }
+    } catch (err) {
+      alert('网络错误');
+    }
+  };
+
+  // 验证激活码
+  const verifyActivationCode = async (code: string): Promise<{valid: boolean, package?: any, error?: string}> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/activation/verify/${code}`);
+      const data = await res.json();
+      return { valid: res.ok, package: data, error: data.error };
+    } catch (err) {
+      return { valid: false, error: '网络错误' };
+    }
+  };
+
+  // 激活账户
+  const activateAccount = async (code: string, businessLicense?: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('code', code);
+      if (user) formData.append('userId', user.id);
+      if (businessLicense) formData.append('businessLicense', businessLicense);
+      
+      const res = await fetch(`${API_BASE}/api/activation/activate`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('激活成功！');
+        // 更新用户信息
+        const userRes = await fetch(`${API_BASE}/api/user/info`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const userData = await userRes.json();
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+        setCurrentPage('profile');
+      } else {
+        alert(data.error || '激活失败');
+      }
+    } catch (err) {
+      alert('网络错误');
+    }
+  };
+
+  // 管理员登录
+  const handleAdminLogin = async (username: string, password: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setToken(data.token);
+        setIsAdmin(true);
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('isAdmin', 'true');
+        setCurrentPage('admin');
+      } else {
+        alert(data.error || '登录失败');
+      }
+    } catch (err) {
+      alert('网络错误');
+    }
+  };
+
+  // 登出
+  const handleLogout = () => {
+    setToken('');
+    setUser(null);
+    setIsAdmin(false);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('isAdmin');
+    setCurrentPage('home');
+  };
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -668,6 +859,7 @@ export default function App() {
                         type="tel"
                         className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
                         placeholder="请输入手机号"
+                        id="login-phone"
                       />
                     </div>
                     <div>
@@ -677,19 +869,37 @@ export default function App() {
                           type="text"
                           className="flex-1 rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
                           placeholder="请输入验证码"
+                          id="login-code"
                         />
-                        <button className="px-4 py-2 rounded-lg bg-white/10 text-sm hover:bg-white/20 transition-colors">
-                          获取验证码
+                        <button 
+                          className="px-4 py-2 rounded-lg bg-white/10 text-sm hover:bg-white/20 transition-colors disabled:opacity-50"
+                          disabled={loginCountdown > 0}
+                          onClick={() => {
+                            const phone = (document.getElementById('login-phone') as HTMLInputElement).value;
+                            sendSMS(phone, () => {}, setLoginCountdown);
+                          }}
+                        >
+                          {loginCountdown > 0 ? `${loginCountdown}s` : '获取验证码'}
                         </button>
                       </div>
                     </div>
-                    <TechButton primary className="w-full justify-center">
+                    <TechButton primary className="w-full justify-center" onClick={() => {
+                      const phone = (document.getElementById('login-phone') as HTMLInputElement).value;
+                      const code = (document.getElementById('login-code') as HTMLInputElement).value;
+                      handleLogin(phone, code);
+                    }}>
                       登录
                     </TechButton>
                     <p className="text-center text-sm text-white/50">
                       还没有账号？ 
                       <button onClick={() => setCurrentPage('register')} className="text-brand-400 hover:underline">
                         立即注册
+                      </button>
+                    </p>
+                    <p className="text-center text-sm text-white/30">
+                      管理员？ 
+                      <button onClick={() => setCurrentPage('admin-login')} className="text-brand-400 hover:underline">
+                        管理员登录
                       </button>
                     </p>
                   </div>
@@ -714,6 +924,7 @@ export default function App() {
                         type="tel"
                         className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
                         placeholder="请输入手机号"
+                        id="register-phone"
                       />
                     </div>
                     <div>
@@ -723,13 +934,35 @@ export default function App() {
                           type="text"
                           className="flex-1 rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
                           placeholder="请输入验证码"
+                          id="register-code"
                         />
-                        <button className="px-4 py-2 rounded-lg bg-white/10 text-sm hover:bg-white/20 transition-colors">
-                          获取验证码
+                        <button 
+                          className="px-4 py-2 rounded-lg bg-white/10 text-sm hover:bg-white/20 transition-colors disabled:opacity-50"
+                          disabled={registerCountdown > 0}
+                          onClick={() => {
+                            const phone = (document.getElementById('register-phone') as HTMLInputElement).value;
+                            sendSMS(phone, () => {}, setRegisterCountdown);
+                          }}
+                        >
+                          {registerCountdown > 0 ? `${registerCountdown}s` : '获取验证码'}
                         </button>
                       </div>
                     </div>
-                    <TechButton primary className="w-full justify-center">
+                    <div>
+                      <label className="block text-xs text-white/50 mb-1">设置密码</label>
+                      <input
+                        type="password"
+                        className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                        placeholder="请设置登录密码"
+                        id="register-password"
+                      />
+                    </div>
+                    <TechButton primary className="w-full justify-center" onClick={() => {
+                      const phone = (document.getElementById('register-phone') as HTMLInputElement).value;
+                      const code = (document.getElementById('register-code') as HTMLInputElement).value;
+                      const password = (document.getElementById('register-password') as HTMLInputElement).value;
+                      handleRegister(phone, code, password);
+                    }}>
                       注册
                     </TechButton>
                     <p className="text-center text-sm text-white/50">
@@ -746,6 +979,11 @@ export default function App() {
         );
 
       case 'profile':
+        // 未登录时跳转登录
+        if (!token) {
+          setCurrentPage('login');
+          return null;
+        }
         return (
           <PageWrapper>
             <section className="pt-32 pb-24 px-6">
@@ -758,18 +996,23 @@ export default function App() {
                         <div className="w-20 h-20 rounded-full bg-brand-500/20 flex items-center justify-center mx-auto mb-4">
                           <Users className="w-10 h-10 text-brand-400" />
                         </div>
-                        <h3 className="font-semibold mb-1">用户</h3>
-                        <p className="text-white/50 text-sm">138****8888</p>
+                        <h3 className="font-semibold mb-1">{user?.phone || '用户'}</h3>
+                        <p className="text-white/50 text-sm">
+                          {user?.package ? `${user.package} - ${user.expireAt || '永久'}` : '未激活'}
+                        </p>
                       </div>
                       <div className="mt-6 space-y-2">
                         <button className="w-full text-left px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm">
                           我的订单
                         </button>
-                        <button className="w-full text-left px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm">
+                        <button onClick={() => setCurrentPage('activate')} className="w-full text-left px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm">
                           激活码
                         </button>
                         <button className="w-full text-left px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-sm">
                           账户设置
+                        </button>
+                        <button onClick={handleLogout} className="w-full text-left px-4 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 transition-colors text-sm text-red-400">
+                          退出登录
                         </button>
                       </div>
                     </div>
@@ -781,7 +1024,19 @@ export default function App() {
                     </div>
                     <div className="glass rounded-2xl p-6">
                       <h3 className="font-semibold mb-4">我的激活码</h3>
-                      <p className="text-white/50 text-sm">暂无激活码</p>
+                      {user?.activationCode ? (
+                        <div className="flex items-center justify-between bg-white/5 rounded-lg p-4">
+                          <span className="font-mono text-lg">{user.activationCode}</span>
+                          <span className="text-green-400 text-sm">已激活</span>
+                        </div>
+                      ) : (
+                        <div className="text-center py-4">
+                          <p className="text-white/50 text-sm mb-4">暂无激活码</p>
+                          <TechButton primary size="sm" onClick={() => setCurrentPage('activate')}>
+                            激活账户
+                          </TechButton>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -791,6 +1046,81 @@ export default function App() {
         );
 
       case 'activate':
+        const handleActivateStep = async () => {
+          if (activateStep === 1) {
+            // 步骤1：登录/注册
+            const phone = (document.getElementById('activate-phone') as HTMLInputElement)?.value || activateData.phone;
+            const code = (document.getElementById('activate-code') as HTMLInputElement)?.value || activateData.code;
+            if (!phone || !code) {
+              alert('请填写手机号和验证码');
+              return;
+            }
+            // 先尝试登录，如果失败则注册
+            try {
+              let res = await fetch(`${API_BASE}/api/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone, code }),
+              });
+              if (res.ok) {
+                const data = await res.json();
+                setToken(data.token);
+                setUser(data.user);
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                setActivateData({ ...activateData, phone, code });
+                setActivateStep(2);
+              } else {
+                // 尝试注册
+                const password = (document.getElementById('activate-password') as HTMLInputElement)?.value || activateData.password;
+                if (!password) {
+                  alert('请设置密码');
+                  return;
+                }
+                res = await fetch(`${API_BASE}/api/auth/register`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ phone, code, password }),
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  setToken(data.token);
+                  setUser(data.user);
+                  localStorage.setItem('token', data.token);
+                  localStorage.setItem('user', JSON.stringify(data.user));
+                  setActivateData({ ...activateData, phone, code, password });
+                  setActivateStep(2);
+                } else {
+                  const data = await res.json();
+                  alert(data.error || '登录/注册失败');
+                }
+              }
+            } catch (err) {
+              alert('网络错误');
+            }
+          } else if (activateStep === 2) {
+            // 步骤2：验证激活码
+            const code = (document.getElementById('activation-code-input') as HTMLInputElement)?.value || activateData.activationCode;
+            if (!code) {
+              alert('请输入激活码');
+              return;
+            }
+            const result = await verifyActivationCode(code);
+            if (result.valid) {
+              setActivationResult(result.package);
+              setActivateData({ ...activateData, activationCode: code });
+              setActivateStep(3);
+            } else {
+              alert(result.error || '激活码无效');
+            }
+          } else if (activateStep === 3) {
+            // 步骤3：激活账户
+            const fileInput = document.getElementById('business-license-input') as HTMLInputElement;
+            const file = fileInput?.files?.[0] || null;
+            await activateAccount(activateData.activationCode, file || undefined);
+          }
+        };
+
         return (
           <PageWrapper>
             <section className="pt-32 pb-24 px-6">
@@ -802,97 +1132,182 @@ export default function App() {
                     <p className="text-white/50">请完成以下步骤来激活您的星空AI账户</p>
                   </div>
 
-                  {/* 步骤1：登录 */}
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="w-6 h-6 rounded-full bg-brand-500 text-white text-sm flex items-center justify-center">1</span>
-                      <span className="font-medium">登录账户</span>
-                    </div>
-                    <div className="pl-8 space-y-4">
-                      <div>
-                        <label className="block text-xs text-white/50 mb-1">手机号</label>
-                        <input
-                          type="tel"
-                          className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
-                          placeholder="请输入手机号"
-                        />
+                  {/* 步骤指示器 */}
+                  <div className="flex justify-center mb-8">
+                    {[1, 2, 3].map((step) => (
+                      <div key={step} className="flex items-center">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
+                          activateStep >= step ? 'bg-brand-500 text-white' : 'bg-white/10 text-white/30'
+                        }`}>
+                          {activateStep > step ? '✓' : step}
+                        </div>
+                        {step < 3 && (
+                          <div className={`w-12 h-0.5 ${activateStep > step ? 'bg-brand-500' : 'bg-white/10'}`} />
+                        )}
                       </div>
-                      <div>
-                        <label className="block text-xs text-white/50 mb-1">验证码</label>
-                        <div className="flex gap-2">
+                    ))}
+                  </div>
+
+                  {/* 步骤1：登录账户 */}
+                  {activateStep === 1 && (
+                    <div className="mb-8">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="w-6 h-6 rounded-full bg-brand-500 text-white text-sm flex items-center justify-center">1</span>
+                        <span className="font-medium">登录账户</span>
+                      </div>
+                      <div className="pl-8 space-y-4">
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">手机号</label>
                           <input
-                            type="text"
-                            className="flex-1 rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
-                            placeholder="请输入验证码"
+                            type="tel"
+                            id="activate-phone"
+                            className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                            placeholder="请输入手机号"
+                            defaultValue={activateData.phone}
                           />
-                          <button className="px-4 py-2 rounded-lg bg-white/10 text-sm hover:bg-white/20 transition-colors">
-                            获取验证码
-                          </button>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">验证码</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              id="activate-code"
+                              className="flex-1 rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                              placeholder="请输入验证码"
+                              defaultValue={activateData.code}
+                            />
+                            <button 
+                              className="px-4 py-2 rounded-lg bg-white/10 text-sm hover:bg-white/20 transition-colors disabled:opacity-50"
+                              disabled={activateCountdown > 0}
+                              onClick={() => {
+                                const phone = (document.getElementById('activate-phone') as HTMLInputElement).value;
+                                sendSMS(phone, () => {}, setActivateCountdown);
+                              }}
+                            >
+                              {activateCountdown > 0 ? `${activateCountdown}s` : '获取验证码'}
+                            </button>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-white/50 mb-1">设置登录密码</label>
+                          <input
+                            type="password"
+                            id="activate-password"
+                            className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                            placeholder="请设置密码（未注册用户需要）"
+                            defaultValue={activateData.password}
+                          />
                         </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* 步骤2：设置密码 */}
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="w-6 h-6 rounded-full bg-brand-500 text-white text-sm flex items-center justify-center">2</span>
-                      <span className="font-medium">设置密码</span>
-                    </div>
-                    <div className="pl-8 space-y-4">
-                      <div>
-                        <label className="block text-xs text-white/50 mb-1">设置登录密码</label>
-                        <input
-                          type="password"
-                          className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
-                          placeholder="请设置密码"
-                        />
+                  {/* 步骤2：输入激活码 */}
+                  {activateStep === 2 && (
+                    <div className="mb-8">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="w-6 h-6 rounded-full bg-brand-500 text-white text-sm flex items-center justify-center">2</span>
+                        <span className="font-medium">输入激活码</span>
                       </div>
-                      <div>
-                        <label className="block text-xs text-white/50 mb-1">确认密码</label>
+                      <div className="pl-8">
                         <input
-                          type="password"
-                          className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
-                          placeholder="请确认密码"
+                          type="text"
+                          id="activation-code-input"
+                          className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-sm outline-none focus:border-brand-500 text-center text-lg font-mono"
+                          placeholder="请输入激活码，如：S001-VIP3-12M-XXXX"
                         />
+                        <p className="text-xs text-white/30 mt-2">激活码由销售提供</p>
+                        {activationResult && (
+                          <div className="mt-4 p-4 bg-brand-500/10 rounded-lg">
+                            <p className="text-sm text-brand-400">套餐: {activationResult.package?.name}</p>
+                            <p className="text-xs text-white/50">时长: {activationResult.package?.duration}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* 步骤3：输入激活码 */}
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="w-6 h-6 rounded-full bg-brand-500 text-white text-sm flex items-center justify-center">3</span>
-                      <span className="font-medium">输入激活码</span>
+                  {/* 步骤3：上传营业执照（可选） */}
+                  {activateStep === 3 && (
+                    <div className="mb-8">
+                      <div className="flex items-center gap-2 mb-4">
+                        <span className="w-6 h-6 rounded-full bg-brand-500 text-white text-sm flex items-center justify-center">3</span>
+                        <span className="font-medium">上传营业执照（可选）</span>
+                      </div>
+                      <div className="pl-8">
+                        <div 
+                          className="border-2 border-dashed border-white/10 rounded-xl p-8 text-center hover:border-brand-500/50 transition-colors cursor-pointer"
+                          onClick={() => document.getElementById('business-license-input')?.click()}
+                        >
+                          <UploadCloud className="w-10 h-10 mx-auto mb-2 text-white/30" />
+                          <p className="text-sm text-white/50">点击或拖拽文件到此处上传</p>
+                          <p className="text-xs text-white/30 mt-1">支持 JPG、PNG 格式</p>
+                          <input
+                            type="file"
+                            id="business-license-input"
+                            className="hidden"
+                            accept="image/jpeg,image/png"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div className="pl-8">
+                  )}
+
+                  <div className="flex gap-4">
+                    {activateStep > 1 && (
+                      <TechButton className="flex-1 justify-center" onClick={() => setActivateStep(activateStep - 1)}>
+                        上一步
+                      </TechButton>
+                    )}
+                    <TechButton primary className="flex-1 justify-center" onClick={handleActivateStep}>
+                      {activateStep === 3 ? '立即激活' : '下一步'}
+                    </TechButton>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </PageWrapper>
+        );
+
+      case 'admin-login':
+        return (
+          <PageWrapper>
+            <section className="pt-32 pb-24 px-6">
+              <div className="max-w-md mx-auto">
+                <div className="glass rounded-2xl p-8">
+                  <h2 className="text-2xl font-bold text-center mb-8">管理员登录</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs text-white/50 mb-1">用户名</label>
                       <input
                         type="text"
-                        className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-3 text-sm outline-none focus:border-brand-500 text-center text-lg font-mono"
-                        placeholder="请输入激活码，如：S001-VIP3-12M-XXXX"
+                        className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                        placeholder="请输入管理员用户名"
+                        id="admin-username"
                       />
-                      <p className="text-xs text-white/30 mt-2">激活码由销售提供</p>
                     </div>
+                    <div>
+                      <label className="block text-xs text-white/50 mb-1">密码</label>
+                      <input
+                        type="password"
+                        className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500"
+                        placeholder="请输入密码"
+                        id="admin-password"
+                      />
+                    </div>
+                    <TechButton primary className="w-full justify-center" onClick={() => {
+                      const username = (document.getElementById('admin-username') as HTMLInputElement).value;
+                      const password = (document.getElementById('admin-password') as HTMLInputElement).value;
+                      handleAdminLogin(username, password);
+                    }}>
+                      登录
+                    </TechButton>
+                    <p className="text-center text-sm text-white/50">
+                      <button onClick={() => setCurrentPage('login')} className="text-brand-400 hover:underline">
+                        返回用户登录
+                      </button>
+                    </p>
                   </div>
-
-                  {/* 步骤4：上传营业执照 */}
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-4">
-                      <span className="w-6 h-6 rounded-full bg-brand-500 text-white text-sm flex items-center justify-center">4</span>
-                      <span className="font-medium">上传营业执照（可选）</span>
-                    </div>
-                    <div className="pl-8">
-                      <div className="border-2 border-dashed border-white/10 rounded-xl p-8 text-center hover:border-brand-500/50 transition-colors cursor-pointer">
-                        <UploadCloud className="w-10 h-10 mx-auto mb-2 text-white/30" />
-                        <p className="text-sm text-white/50">点击或拖拽文件到此处上传</p>
-                        <p className="text-xs text-white/30 mt-1">支持 JPG、PNG 格式</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <TechButton primary className="w-full justify-center">
-                    立即激活
-                  </TechButton>
                 </div>
               </div>
             </section>
@@ -900,21 +1315,44 @@ export default function App() {
         );
 
       case 'admin':
+        // 检查管理员登录
+        if (!isAdmin) {
+          return (
+            <PageWrapper>
+              <section className="pt-32 pb-24 px-6">
+                <div className="max-w-md mx-auto text-center">
+                  <ShieldCheck className="w-16 h-16 mx-auto mb-4 text-brand-400" />
+                  <h2 className="text-2xl font-bold mb-4">需要管理员权限</h2>
+                  <p className="text-white/50 mb-6">请先登录管理员账户</p>
+                  <TechButton primary onClick={() => setCurrentPage('admin-login')}>
+                    管理员登录
+                  </TechButton>
+                </div>
+              </section>
+            </PageWrapper>
+          );
+        }
         return (
           <PageWrapper>
             <section className="pt-24 pb-24 px-6">
               <div className="max-w-6xl mx-auto">
                 <div className="flex items-center justify-between mb-8">
                   <h1 className="text-3xl font-bold">管理后台</h1>
-                  <button 
-                    onClick={() => setCurrentPage('home')}
-                    className="text-sm text-white/50 hover:text-white"
-                  >
-                    返回首页
-                  </button>
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={handleLogout}
+                      className="text-sm text-red-400 hover:text-red-300"
+                    >
+                      退出登录
+                    </button>
+                    <button 
+                      onClick={() => setCurrentPage('home')}
+                      className="text-sm text-white/50 hover:text-white"
+                    >
+                      返回首页
+                    </button>
+                  </div>
                 </div>
-
-                <div className="grid md:grid-cols-4 gap-6 mb-8">
                   {[
                     { icon: FileText, label: '内容管理', desc: '修改首页文字图片' },
                     { icon: CreditCard, label: '套餐管理', desc: '添加/修改套餐' },
