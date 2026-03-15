@@ -502,8 +502,8 @@ app.get('/api/license/quota', (req, res) => {
 
     if (user.package_type !== 'VIP3')
       return res.status(403).json({ error: '该功能需要专业版' });
-
-    res.json({
+  
+  res.json({
       image: user.ai_image_quota ?? 0,
       video: user.ai_video_quota ?? 0,
       edit:  user.ai_edit_quota  ?? 0,
@@ -565,6 +565,23 @@ app.post('/api/license/quota/use', (req, res) => {
     console.error('[quota/use error]', err);
     res.status(500).json({ error: '额度扣减失败' });
   }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// 桌面软件版本查询接口（公开）
+// 用于 electron-updater 之外的自定义版本校验场景
+// ════════════════════════════════════════════════════════════════════════════
+// 修改方式：直接改这里的版本号即可，无需重启（热更新时生效）
+const LATEST_DESKTOP_VERSION = {
+  version:       '1.0.0',
+  releaseDate:   '2026-03-15',
+  downloadUrl:   '/downloads/星空AI_Setup_1.0.0.exe',
+  releaseNotes:  '首个正式发行版',
+  mandatory:     false,   // true = 强制更新，禁止跳过
+};
+
+app.get('/api/version', (_req, res) => {
+  res.json({ ok: true, ...LATEST_DESKTOP_VERSION });
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -648,7 +665,7 @@ app.post('/api/orders/upgrade', requireUser, (req: any, res) => {
     // ── 升级后到期时间：从今天起算新套餐时长 ─────────────────────────────
     const expireDate = new Date(now);
     expireDate.setMonth(expireDate.getMonth() + Number(months));
-    const expireDateStr = expireDate.toISOString();
+  const expireDateStr = expireDate.toISOString();
     const nowStr = now.toISOString();
 
     // ── 专业版 AI 额度 ────────────────────────────────────────────────────
@@ -684,7 +701,7 @@ app.post('/api/orders/upgrade', requireUser, (req: any, res) => {
 
     // ── 升级用户账户 ──────────────────────────────────────────────────────
     db.prepare(`
-      UPDATE users SET
+      UPDATE users SET 
         is_activated     = 1,
         package_type     = 'VIP3',
         expire_date      = ?,
@@ -834,9 +851,9 @@ app.get('/api/admin/codes', requireAdmin, (_req, res) => {
   const now = Date.now();
   const codes = db.prepare(
     `SELECT ac.*, s.name as sales_name, u.phone as user_phone, u.expire_date as user_expire_date
-     FROM activation_codes ac
-     LEFT JOIN sales s ON ac.sales_id = s.id
-     LEFT JOIN users u ON ac.user_id = u.id
+    FROM activation_codes ac
+    LEFT JOIN sales s ON ac.sales_id = s.id
+    LEFT JOIN users u ON ac.user_id = u.id
      ORDER BY ac.created_at DESC`
   ).all() as any[];
   res.json(codes.map(c => ({
