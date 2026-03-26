@@ -12,9 +12,13 @@ const PORT = process.env.PORT || 4000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
-const ALLOWED_ORIGINS = (
-  process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:4000,http://localhost:5173'
-).split(',');
+const _defaultOrigins = NODE_ENV === 'production'
+  ? ''   // 生产环境必须通过 ALLOWED_ORIGINS 环境变量显式配置，不提供默认值
+  : 'http://localhost:3000,http://localhost:4000,http://localhost:5173';
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || _defaultOrigins)
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
@@ -33,6 +37,9 @@ initDb();
 
 // ── 工具函数 ──────────────────────────────────────────────────────────────────
 const SALT = process.env.PASSWORD_SALT || 'nebula_xingkong_2026_salt';
+if (NODE_ENV === 'production' && !process.env.PASSWORD_SALT) {
+  console.warn('[WARN] 建议在生产环境通过 PASSWORD_SALT 环境变量设置唯一随机盐值');
+}
 
 function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password + SALT).digest('hex');
@@ -79,6 +86,34 @@ function getExpectedPrice(package_type: string, months: number): number | null {
 const smsCodes    = new Map<string, { code: string; expiresAt: number }>();
 const userTokens  = new Map<string, number>();
 const salesTokens = new Map<string, number>();
+// 管理员动态 session：token → 过期时间戳（24小时）
+const adminTokens = new Map<string, number>();
+const ADMIN_SESSION_TTL = 24 * 60 * 60 * 1000;
+
+// ── 登录频率限制（防暴力破解）────────────────────────────────────────────────
+// key: 'user:<phone>' | 'admin:<username>' | 'sales:<code_prefix>'
+const loginAttempts = new Map<string, { count: number; windowStart: number }>();
+const RATE_LIMIT_MAX    = 10;                  // 每窗口期最多失败次数
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000;     // 15 分钟窗口
+
+function checkRateLimit(key: string): boolean {
+  const now = Date.now();
+  const rec = loginAttempts.get(key);
+  if (!rec || now - rec.windowStart > RATE_LIMIT_WINDOW) return true;
+  return rec.count < RATE_LIMIT_MAX;
+}
+function recordLoginFailure(key: string) {
+  const now = Date.now();
+  const rec = loginAttempts.get(key);
+  if (!rec || now - rec.windowStart > RATE_LIMIT_WINDOW) {
+    loginAttempts.set(key, { count: 1, windowStart: now });
+  } else {
+    rec.count++;
+  }
+}
+function clearLoginAttempts(key: string) {
+  loginAttempts.delete(key);
+}
 
 // ── 初始化默认销售密码 ─────────────────────────────────────────────────────────
 try {
@@ -88,16 +123,23 @@ try {
   }
 } catch (_) {}
 
-// ── 管理员配置 ────────────────────────────────────────────────────────────────
-const ADMIN_TOKEN    = process.env.ADMIN_TOKEN    || 'change-me-admin-token';
-const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'xingkong2026';
+// ── 管理员配置（唯一管理员，手机验证码登录）────────────────────────────────
+const ADMIN_PHONE = process.env.ADMIN_PHONE || '18018844437';
+
+if (NODE_ENV === 'production' && !process.env.ADMIN_PHONE) {
+  console.warn('[WARN] 建议通过 ADMIN_PHONE 环境变量显式设置管理员手机号');
+}
 
 // ── 权限中间件 ────────────────────────────────────────────────────────────────
 function requireAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
   const token = (req.headers['x-admin-token'] || req.headers.authorization || '')
     .toString().replace(/^Bearer\s+/i, '');
-  if (!token || token !== ADMIN_TOKEN) return res.status(401).json({ error: 'Unauthorized' });
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  const expiry = adminTokens.get(token);
+  if (!expiry || Date.now() >= expiry) {
+    adminTokens.delete(token);
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
   next();
 }
 
@@ -201,12 +243,18 @@ app.post('/api/sms/send', async (req, res) => {
     return res.json({ success: true, message: '验证码已发送（5分钟有效）' });
   }
 
-  // 开发模式：打印到控制台
+  if (NODE_ENV === 'production') {
+    // 生产环境短信未配置：清除验证码，拒绝请求
+    smsCodes.delete(phone);
+    console.error('[SMS] ❌ 生产环境短信服务未配置，拒绝发送');
+    return res.status(500).json({ error: '短信服务暂不可用，请联系管理员' });
+  }
+
+  // 开发模式：只打印到控制台，不在响应中返回验证码
   console.log(`[SMS][DEV] ${phone} → ${code}`);
   res.json({
     success: true,
-    message: '验证码已发送（5分钟有效）',
-    code,          // 开发模式返回，方便测试
+    message: '开发模式：验证码已打印到服务器控制台',
   });
 });
 
@@ -265,25 +313,32 @@ app.post('/api/auth/register', (req, res) => {
 // 登录
 app.post('/api/auth/login', (req, res) => {
   try {
-  const { phone, password } = req.body || {};
+    const { phone, password } = req.body || {};
     if (!phone || !password) return res.status(400).json({ error: '手机号和密码不能为空' });
-  
-  const user = db.prepare('SELECT * FROM users WHERE phone = ?').get(phone) as any;
-    if (!user) return res.status(400).json({ error: '用户不存在，请先注册' });
+
+    const rlKey = `user:${phone}`;
+    if (!checkRateLimit(rlKey))
+      return res.status(429).json({ error: '登录尝试过于频繁，请 15 分钟后再试' });
+
+    const user = db.prepare('SELECT * FROM users WHERE phone = ?').get(phone) as any;
+    if (!user) { recordLoginFailure(rlKey); return res.status(400).json({ error: '用户不存在，请先注册' }); }
 
     const hashedPw = hashPassword(password);
-    if (user.password !== hashedPw && user.password !== password)
-    return res.status(400).json({ error: '密码错误' });
+    if (user.password !== hashedPw && user.password !== password) {
+      recordLoginFailure(rlKey);
+      return res.status(400).json({ error: '密码错误' });
+    }
 
     // 自动升级明文密码
     if (user.password === password && user.password !== hashedPw) {
       db.prepare('UPDATE users SET password = ?, updated_at = ? WHERE id = ?')
         .run(hashedPw, new Date().toISOString(), user.id);
-  }
-  
+    }
+
+    clearLoginAttempts(rlKey);
     const token = generateToken();
     userTokens.set(token, user.id);
-  const { password: _, ...userInfo } = user;
+    const { password: _, ...userInfo } = user;
     res.json({ success: true, token, user: userInfo });
   } catch (err: any) {
     res.status(500).json({ error: '登录失败，请稍后重试' });
@@ -759,12 +814,61 @@ app.post('/api/orders', (req, res) => {
 // 管理员 API
 // ════════════════════════════════════════════════════════════════════════════
 
+// 向管理员手机发送登录验证码
+app.post('/api/admin/send-code', async (req, res) => {
+  const rlKey = `admin-sms:${ADMIN_PHONE}`;
+  if (!checkRateLimit(rlKey))
+    return res.status(429).json({ error: '获取验证码过于频繁，请 15 分钟后再试' });
+
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  smsCodes.set(ADMIN_PHONE, { code, expiresAt: Date.now() + 5 * 60 * 1000 });
+
+  if (SMS_READY) {
+    const { ok, msg } = await sendAliyunSMS(ADMIN_PHONE, code);
+    if (!ok) {
+      smsCodes.delete(ADMIN_PHONE);
+      return res.status(500).json({ error: `短信发送失败：${msg}` });
+    }
+    recordLoginFailure(rlKey);
+    return res.json({ success: true });
+  }
+
+  if (NODE_ENV === 'production') {
+    smsCodes.delete(ADMIN_PHONE);
+    return res.status(500).json({ error: '短信服务未配置，无法发送验证码' });
+  }
+
+  console.log(`[ADMIN SMS DEV] 管理员验证码 → ${code}`);
+  res.json({ success: true });
+});
+
+// 管理员登录：验证码校验
 app.post('/api/admin/login', (req, res) => {
-  const { username, password } = req.body || {};
-  if (!username || !password) return res.status(400).json({ error: '请提供用户名和密码' });
-  if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD)
-    return res.status(401).json({ error: '用户名或密码错误' });
-  res.json({ token: ADMIN_TOKEN, success: true });
+  const { code } = req.body || {};
+  if (!code) return res.status(400).json({ error: '请输入验证码' });
+
+  const rlKey = `admin-verify:${ADMIN_PHONE}`;
+  if (!checkRateLimit(rlKey))
+    return res.status(429).json({ error: '验证尝试过于频繁，请稍后再试' });
+
+  const stored = smsCodes.get(ADMIN_PHONE);
+  if (!stored || stored.code !== String(code).trim() || Date.now() > stored.expiresAt) {
+    recordLoginFailure(rlKey);
+    return res.status(401).json({ error: '验证码错误或已过期，请重新获取' });
+  }
+
+  smsCodes.delete(ADMIN_PHONE);
+  clearLoginAttempts(rlKey);
+  const sessionToken = generateToken();
+  adminTokens.set(sessionToken, Date.now() + ADMIN_SESSION_TTL);
+  res.json({ token: sessionToken, success: true });
+});
+
+app.post('/api/admin/logout', (req, res) => {
+  const token = (req.headers['x-admin-token'] || req.headers.authorization || '')
+    .toString().replace(/^Bearer\s+/i, '');
+  if (token) adminTokens.delete(token);
+  res.json({ success: true });
 });
 
 app.get('/api/admin/content', requireAdmin, (_req, res) => res.json(getAllContentBlocks()));
@@ -891,17 +995,23 @@ app.post('/api/sales/login', (req, res) => {
     const { code_prefix, password } = req.body || {};
     if (!code_prefix || !password) return res.status(400).json({ error: '销售码和密码不能为空' });
 
+    const rlKey = `sales:${code_prefix}`;
+    if (!checkRateLimit(rlKey))
+      return res.status(429).json({ error: '登录尝试过于频繁，请 15 分钟后再试' });
+
     const s = db.prepare('SELECT * FROM sales WHERE code_prefix = ?').get(code_prefix) as any;
-    if (!s) return res.status(401).json({ error: '销售码不存在' });
+    if (!s) { recordLoginFailure(rlKey); return res.status(401).json({ error: '销售码不存在' }); }
 
     const storedPw = s.password || '';
+    if (!storedPw) return res.status(401).json({ error: '账户密码未设置，请联系管理员' });
     const hashedInput = hashPassword(password);
-    const match = storedPw === hashedInput || storedPw === password || storedPw === '';
-    if (!match) return res.status(401).json({ error: '密码错误' });
+    const match = storedPw === hashedInput || storedPw === password;
+    if (!match) { recordLoginFailure(rlKey); return res.status(401).json({ error: '密码错误' }); }
     if (storedPw !== hashedInput) {
       db.prepare('UPDATE sales SET password = ? WHERE id = ?').run(hashedInput, s.id);
     }
 
+    clearLoginAttempts(rlKey);
     const token = generateToken();
     salesTokens.set(token, s.id);
     res.json({ success: true, token, sales: { id: s.id, name: s.name, code_prefix: s.code_prefix, phone: s.phone } });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import {
+import { 
   ChevronLeft, ChevronRight, ArrowRight, Star, Lightbulb,
   MessageSquare, TrendingUp, ClipboardList, Palette, Calendar,
   Wallet, Calculator, PieChart, CheckCircle2, Rocket,
@@ -98,21 +98,20 @@ const galleryImages = [
   { src: '/微信图片_20260307001513.png', alt: '产品截图 2' },
   { src: '/微信图片_20260307001519.png', alt: '产品截图 3' },
   { src: '/微信图片_20260307001525.png', alt: '产品截图 4' },
-  { src: '/微信图片_20260307001531.png', alt: '产品截图 5' },
-  { src: '/微信图片_20260307001535.png', alt: '产品截图 6' },
-  { src: '/微信图片_20260307001538.png', alt: '产品截图 7' },
-  { src: '/微信图片_20260307001543.png', alt: '产品截图 8' },
-  { src: '/微信图片_20260307001548.png', alt: '产品截图 9' },
-  { src: '/微信图片_20260307001552.png', alt: '产品截图 10' },
-  { src: '/微信图片_20260307001556.png', alt: '产品截图 11' },
-  { src: '/微信图片_20260307001559.png', alt: '产品截图 12' },
-  { src: '/微信图片_20260307001603.png', alt: '产品截图 13' },
-  { src: '/微信图片_20260307001607.png', alt: '产品截图 14' },
-  { src: '/微信图片_20260307001610.png', alt: '产品截图 15' },
-  { src: '/微信图片_20260307001613.png', alt: '产品截图 16' },
-  { src: '/微信图片_20260307001617.png', alt: '产品截图 17' },
-  { src: '/微信图片_20260307001620.png', alt: '产品截图 18' },
-  { src: '/微信图片_20260307001624.png', alt: '产品截图 19' },
+  { src: '/微信图片_20260307001535.png', alt: '产品截图 5' },
+  { src: '/微信图片_20260307001538.png', alt: '产品截图 6' },
+  { src: '/微信图片_20260307001543.png', alt: '产品截图 7' },
+  { src: '/微信图片_20260307001548.png', alt: '产品截图 8' },
+  { src: '/微信图片_20260307001552.png', alt: '产品截图 9' },
+  { src: '/微信图片_20260307001556.png', alt: '产品截图 10' },
+  { src: '/微信图片_20260307001559.png', alt: '产品截图 11' },
+  { src: '/微信图片_20260307001603.png', alt: '产品截图 12' },
+  { src: '/微信图片_20260307001607.png', alt: '产品截图 13' },
+  { src: '/微信图片_20260307001610.png', alt: '产品截图 14' },
+  { src: '/微信图片_20260307001613.png', alt: '产品截图 15' },
+  { src: '/微信图片_20260307001617.png', alt: '产品截图 16' },
+  { src: '/微信图片_20260307001620.png', alt: '产品截图 17' },
+  { src: '/微信图片_20260307001624.png', alt: '产品截图 18' },
 ];
 
 const ImageCarousel = () => {
@@ -160,7 +159,7 @@ const Btn = ({ children, onClick, primary, size = 'md', type = 'button', disable
   size?: 'sm' | 'md' | 'lg'; type?: 'button' | 'submit'; disabled?: boolean; full?: boolean;
 }) => {
   const sz = { sm: 'px-4 py-2 text-xs', md: 'px-6 py-3 text-sm', lg: 'px-8 py-4 text-base' }[size];
-  return (
+  return ( 
     <button type={type} onClick={onClick} disabled={disabled}
       className={`${sz} ${full ? 'w-full' : ''} font-medium tracking-wide transition-all duration-300 rounded-lg flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${
         primary
@@ -168,8 +167,8 @@ const Btn = ({ children, onClick, primary, size = 'md', type = 'button', disable
           : 'glass text-white/80 hover:text-white hover:bg-white/[0.06]'
       }`}>
       {children}
-    </button>
-  );
+  </button>
+);
 };
 
 const LogoNA = ({ className = 'w-10 h-10' }: { className?: string }) => (
@@ -177,7 +176,7 @@ const LogoNA = ({ className = 'w-10 h-10' }: { className?: string }) => (
     <path d="M20 60V20L50 50V20" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" className="text-brand-400" />
     <path d="M70 60L85 20L100 60" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" className="text-brand-300" />
     <path d="M78 45H92" stroke="currentColor" strokeWidth="6" strokeLinecap="round" className="text-brand-500" />
-  </svg>
+    </svg>
 );
 
 const FeatureCard = ({ icon: Icon, title, description, index }: { icon: any; title: string; description: string; index: number }) => (
@@ -187,7 +186,7 @@ const FeatureCard = ({ icon: Icon, title, description, index }: { icon: any; tit
     <div className="absolute top-0 right-0 p-4 font-mono text-brand-500/20 text-4xl font-bold">{String(index + 1).padStart(2, '0')}</div>
     <div className="w-14 h-14 rounded-xl bg-brand-500/10 flex items-center justify-center mb-6 group-hover:bg-brand-500/20 transition-colors">
       <Icon className="text-brand-400 w-7 h-7" />
-    </div>
+  </div>
     <h3 className="text-xl font-semibold mb-3 text-white">{title}</h3>
     <p className="text-white/60 text-sm leading-relaxed">{description}</p>
   </motion.div>
@@ -243,11 +242,25 @@ export default function App() {
   const [payingPlan, setPayingPlan]   = useState<PayingPlan | null>(null);
   const [payLoading, setPayLoading]   = useState(false);
   const [paySuccess, setPaySuccess]   = useState<{ expire_date: string; days_left: number; package_type?: string } | null>(null);
+  // 订单刷新触发器（购买成功后 +1，ProfilePage 监听并重新加载订单）
+  const [orderRefreshKey, setOrderRefreshKey] = useState(0);
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // 隐秘后台入口：通过 URL Hash 触发，进入后立即清除 hash
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash === '#xk-admin') {
+      setPage('admin');
+      window.history.replaceState(null, '', window.location.pathname);
+    } else if (hash === '#xk-sales') {
+      setPage('sales');
+      window.history.replaceState(null, '', window.location.pathname);
+    }
   }, []);
 
   const loadUser = useCallback(async (t: string) => {
@@ -280,6 +293,7 @@ export default function App() {
       );
       setPaySuccess(data);
       await loadUser(token);
+      setOrderRefreshKey(k => k + 1); // 触发 ProfilePage 重新加载订单
     } catch (err: any) { alert(err.message || '操作失败，请稍后重试'); }
     finally { setPayLoading(false); }
   }
@@ -291,7 +305,7 @@ export default function App() {
 
   const features = [
     { icon: MessageSquare, title: 'AI智能对话', description: '像聊天一样简单。直接告诉AI你的需求："帮我分析营收"、"帮我排班"、"怎么做活动"，AI秒懂并给出可执行方案。7×24小时随时响应。' },
-    { icon: TrendingUp,    title: '多平台数据自动爬取', description: '美团、饿了么、大众点评数据自动汇总。一个界面看清营收、订单、评价等核心指标，数据可视化一目了然。' },
+    { icon: TrendingUp,    title: '多平台账户监控', description: '美团、饿了么、大众点评数据自动汇总。一个界面看清营收、订单、评价等核心指标，数据可视化一目了然。' },
     { icon: ClipboardList, title: '每日经营复盘', description: 'AI每天生成10个经营问题，引导完成每日复盘。涵盖营收、成本、客流、评价等，数据自动累计到系统，月度统计更轻松。' },
     { icon: Palette,       title: 'AI营销助手', description: '不会设计没关系。说"帮我做个促销海报"，AI几秒钟生成。想要短视频？告诉AI主题，自动帮你剪辑。降低营销门槛，提升曝光。' },
     { icon: Calendar,      title: '智能排班', description: '根据客流和营收，AI智能推荐最优排班方案。一键通知员工，省时省心。' },
@@ -308,7 +322,7 @@ export default function App() {
     { title: '经营分析', description: '数据太多整理不过来', oldWay: '凭感觉判断',   newWay: 'AI给出建议' },
   ];
 
-  return (
+        return (
     <div className="min-h-screen font-sans bg-brand-950 grid-bg">
       {/* 背景光晕 */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
@@ -356,8 +370,6 @@ export default function App() {
                 <Btn primary size="sm" onClick={() => navigate('register')}>注册</Btn>
               </>
             )}
-            <button onClick={() => navigate('admin')} className="text-white/20 hover:text-white/40 text-xs px-2 py-1 transition-colors">管理</button>
-            <button onClick={() => navigate('sales')} className="text-white/20 hover:text-white/40 text-xs px-2 py-1 transition-colors">销售</button>
           </div>
         </div>
       </nav>
@@ -367,124 +379,183 @@ export default function App() {
           {page === 'home' && (
             <PageWrapper key="home">
               {/* Hero */}
-              <section className="pt-40 pb-24 px-6">
-                <div className="max-w-6xl mx-auto">
+            <section className="pt-40 pb-24 px-6">
+              <div className="max-w-6xl mx-auto">
                   <div className="text-center mb-16">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-sm mb-8">
-                      <Star className="w-4 h-4" />
-                      <span>让开店变得更简单</span>
+                    {/* 痛点冲击文案 — 大字展示排版，与 Hero 字号一致 */}
+                    <div className="max-w-4xl mx-auto mb-14 space-y-6">
+
+                      {/* Eyebrow 标签 */}
+                      <motion.p
+                        initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.05, duration: 0.5 }}
+                        className="text-brand-400/60 text-sm font-semibold tracking-[0.25em] uppercase"
+                      >
+                        别急着否认，问问你自己
+                      </motion.p>
+
+                      {/* 三句问题 — 大字 */}
+                      <div className="space-y-3">
+                        {[
+                          { delay: 0.15, text: <>看着惨淡的营业额，你真的知道<span className="text-brand-400">问题出在哪</span>吗？</> },
+                          { delay: 0.3,  text: <>同行都在做营销、拍视频，你却<span className="text-brand-400">连海报都做不出来</span>？</> },
+                          { delay: 0.45, text: <>月底面对一堆票据，你分得清<span className="text-brand-400">什么是抵扣联</span>吗？</> },
+                        ].map((item, i) => (
+                          <motion.h2
+                            key={i}
+                            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: item.delay, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+                            className="text-3xl md:text-4xl lg:text-5xl font-display font-bold text-white/85 leading-tight"
+                          >
+                            {item.text}
+                          </motion.h2>
+                        ))}
+                      </div>
+
+                      {/* 分隔线 */}
+                      <motion.div
+                        initial={{ scaleX: 0 }} animate={{ scaleX: 1 }}
+                        transition={{ delay: 0.65, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                        className="h-px bg-gradient-to-r from-transparent via-white/15 to-transparent origin-center"
+                      />
+
+                      {/* 结语两行 */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.75, duration: 0.55 }}
+                        className="space-y-2"
+                      >
+                        <p className="text-xl md:text-2xl font-display font-semibold text-white leading-snug">
+                          醒醒吧！创业不是凭一腔热血，就是一场<span className="text-red-400">赤裸裸的生存战</span>。
+                        </p>
+                        <p className="text-base md:text-lg text-white/50 leading-relaxed">
+                          守不住，前面赚的钱全都是给房东和税务局的「打工钱」。
+                        </p>
+                      </motion.div>
+
+                      {/* CTA 结语 */}
+                      <motion.p
+                        initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.95, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                        className="text-lg md:text-xl font-semibold text-brand-400 leading-relaxed"
+                      >
+                        🛡️ 用星空AI，在你被残酷的市场淘汰之前，先帮你守住最后一道防线！
+                      </motion.p>
                     </div>
-                    {/* 产品演示视频 */}
+                  {/* 产品演示视频 */}
                     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="mb-10">
                       <video src="/demo.mp4" controls autoPlay muted loop playsInline
-                        className="w-full max-w-3xl mx-auto rounded-2xl shadow-2xl border border-white/10"
+                      className="w-full max-w-3xl mx-auto rounded-2xl shadow-2xl border border-white/10"
                         style={{ maxHeight: '400px' }} />
-                    </motion.div>
-                    <h1 className="text-5xl md:text-6xl lg:text-7xl font-display font-bold mb-6 leading-tight">
-                      星空AI
-                      <span className="block text-brand-400">智能门店经营助手</span>
-                    </h1>
-                    <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto mb-10 leading-relaxed">
-                      专为街边门店打造的AI经营助手。餐饮、零售、服务业——不管什么业态，都能帮你轻松管理店铺。
-                    </p>
-                    <div className="flex flex-wrap justify-center gap-4 mb-12">
+                  </motion.div>
+                  <h1 className="text-5xl md:text-6xl lg:text-7xl font-display font-bold mb-6 leading-tight">
+                    星空AI
+                    <span className="block text-brand-400">智能门店经营助手</span>
+                  </h1>
+                  <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto mb-10 leading-relaxed">
+                    专为街边门店打造的AI经营助手。餐饮、零售、服务业——不管什么业态，都能帮你轻松管理店铺。<br />
+                    <span className="text-brand-400/80">数据完全实现本地化运作，不用担心数据泄露。</span>
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-4 mb-12">
                       <Btn primary size="lg" onClick={() => navigate('pricing')}>立即体验 <ArrowRight className="w-4 h-4" /></Btn>
                       <Btn size="lg" onClick={() => navigate('download')}><Download className="w-4 h-4" />下载软件</Btn>
                       <Btn size="lg" onClick={() => navigate('features')}>了解功能</Btn>
-                    </div>
                   </div>
+                </div>
                   {/* 轮播图 */}
                   <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.6 }} className="relative">
-                    <div className="absolute inset-0 bg-brand-500/20 blur-[80px] rounded-3xl -z-10" />
-                    <ImageCarousel />
-                  </motion.div>
-                </div>
-              </section>
+                  <div className="absolute inset-0 bg-brand-500/20 blur-[80px] rounded-3xl -z-10" />
+                  <ImageCarousel />
+                </motion.div>
+              </div>
+            </section>
 
               {/* 痛点 */}
-              <section className="py-20 px-6">
-                <div className="max-w-6xl mx-auto">
-                  <div className="text-center mb-14">
-                    <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">你是否遇到过这些烦恼？</h2>
-                    <p className="text-white/50">星空AI帮你一键解决</p>
-                  </div>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {problems.map((item, i) => <ProblemCard key={i} {...item} />)}
-                  </div>
+            <section className="py-20 px-6">
+              <div className="max-w-6xl mx-auto">
+                <div className="text-center mb-14">
+                  <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">你是否遇到过这些烦恼？</h2>
+                  <p className="text-white/50">星空AI帮你一键解决</p>
                 </div>
-              </section>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {problems.map((item, i) => <ProblemCard key={i} {...item} />)}
+                </div>
+              </div>
+            </section>
 
               {/* 功能预览 */}
-              <section className="py-20 px-6">
-                <div className="max-w-6xl mx-auto">
-                  <div className="text-center mb-14">
-                    <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">星空AI能做什么？</h2>
-                    <p className="text-white/50">8大核心功能，帮你省心省力</p>
-                  </div>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <section className="py-20 px-6">
+              <div className="max-w-6xl mx-auto">
+                <div className="text-center mb-14">
+                  <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">星空AI能做什么？</h2>
+                  <p className="text-white/50">8大核心功能，帮你省心省力</p>
+                </div>
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {features.map((f, i) => <FeatureCard key={i} {...f} index={i} />)}
-                  </div>
-                  <div className="text-center mt-10">
+                </div>
+                <div className="text-center mt-10">
                     <Btn onClick={() => navigate('features')}>查看全部功能 <ChevronRight className="w-4 h-4" /></Btn>
                   </div>
-                </div>
-              </section>
+              </div>
+            </section>
 
               {/* CTA */}
-              <section className="py-20 px-6">
-                <div className="max-w-4xl mx-auto">
-                  <div className="glass rounded-3xl p-10 md:p-14 text-center relative overflow-hidden">
-                    <div className="absolute inset-0 bg-brand-500/5 -z-10" />
-                    <Lightbulb className="w-12 h-12 text-brand-400 mx-auto mb-6" />
-                    <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">让AI成为你的经营顾问</h2>
-                    <p className="text-white/60 mb-8 max-w-xl mx-auto">
-                      告别繁琐管理，专注店铺经营。像请了一个24小时不休息的店长，帮你整理数据、分析问题、想营销主意。
-                    </p>
-                    <Btn primary size="lg" onClick={() => navigate('pricing')}>立即开始 <ArrowRight className="w-5 h-5" /></Btn>
-                  </div>
+            <section className="py-20 px-6">
+              <div className="max-w-4xl mx-auto">
+                <div className="glass rounded-3xl p-10 md:p-14 text-center relative overflow-hidden">
+                  <div className="absolute inset-0 bg-brand-500/5 -z-10" />
+                  <Lightbulb className="w-12 h-12 text-brand-400 mx-auto mb-6" />
+                  <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">让AI成为你的经营顾问</h2>
+                  <p className="text-white/60 mb-8 max-w-xl mx-auto">
+                    告别繁琐管理，专注店铺经营。像请了一个24小时不休息的店长，帮你整理数据、分析问题、想营销主意。
+                  </p>
+                    <div className="flex justify-center">
+                      <Btn primary size="lg" onClick={() => navigate('pricing')}>立即开始 <ArrowRight className="w-5 h-5" /></Btn>
+                    </div>
                 </div>
-              </section>
-            </PageWrapper>
+              </div>
+            </section>
+          </PageWrapper>
           )}
 
           {page === 'features' && (
             <PageWrapper key="features">
-              <section className="pt-32 pb-20 px-6">
-                <div className="max-w-6xl mx-auto">
-                  <div className="text-center mb-16">
-                    <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">核心功能</h1>
+            <section className="pt-32 pb-20 px-6">
+              <div className="max-w-6xl mx-auto">
+                <div className="text-center mb-16">
+                  <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">核心功能</h1>
                     <p className="text-white/60 text-lg max-w-2xl mx-auto">星空AI像一个24小时不休息的店长，帮你整理数据、分析问题、想营销主意、算工资。</p>
-                  </div>
-                  <div className="space-y-16">
-                    {features.map((f, i) => (
+                </div>
+                <div className="space-y-16">
+                  {features.map((f, i) => (
                       <motion.div key={i} initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}
                         className={`flex flex-col ${i % 2 === 1 ? 'md:flex-row-reverse' : 'md:flex-row'} gap-8 items-center`}>
-                        <div className="flex-1">
-                          <div className="w-16 h-16 rounded-xl bg-brand-500/10 flex items-center justify-center mb-6">
-                            <f.icon className="text-brand-400 w-8 h-8" />
-                          </div>
-                          <h3 className="text-2xl font-semibold mb-3">{f.title}</h3>
-                          <p className="text-white/60 leading-relaxed">{f.description}</p>
+                      <div className="flex-1">
+                        <div className="w-16 h-16 rounded-xl bg-brand-500/10 flex items-center justify-center mb-6">
+                          <f.icon className="text-brand-400 w-8 h-8" />
                         </div>
-                        <div className="flex-1 w-full">
-                          <div className="glass rounded-2xl p-8 aspect-video flex items-center justify-center">
-                            <f.icon className="text-brand-500/30 w-24 h-24" />
-                          </div>
+                        <h3 className="text-2xl font-semibold mb-3">{f.title}</h3>
+                        <p className="text-white/60 leading-relaxed">{f.description}</p>
+                      </div>
+                      <div className="flex-1 w-full">
+                        <div className="glass rounded-2xl p-8 aspect-video flex items-center justify-center">
+                          <f.icon className="text-brand-500/30 w-24 h-24" />
                         </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                  <div className="mt-20 text-center">
-                    <h3 className="text-2xl font-semibold mb-6">适用业态</h3>
-                    <div className="flex flex-wrap justify-center gap-3">
+                      </div>
+                    </motion.div>
+                      ))}
+                    </div>
+                <div className="mt-20 text-center">
+                  <h3 className="text-2xl font-semibold mb-6">适用业态</h3>
+                  <div className="flex flex-wrap justify-center gap-3">
                       {['餐饮店','便利店','超市','药店','母婴店','美容','美发','洗车','维修','服装店'].map(item => (
                         <span key={item} className="px-4 py-2 rounded-full bg-white/5 text-white/70 text-sm">{item}</span>
-                      ))}
+                    ))}
                     </div>
                   </div>
                 </div>
-              </section>
-            </PageWrapper>
+            </section>
+          </PageWrapper>
           )}
 
           {page === 'pricing' && (
@@ -519,7 +590,7 @@ export default function App() {
 
           {page === 'profile' && (
             <PageWrapper key="profile">
-              <ProfilePage user={user} token={token} loadUser={loadUser} openPayModal={openPayModal} navigate={navigate} />
+              <ProfilePage user={user} token={token} loadUser={loadUser} openPayModal={openPayModal} navigate={navigate} orderRefreshKey={orderRefreshKey} />
             </PageWrapper>
           )}
 
@@ -543,21 +614,21 @@ export default function App() {
           <div className="flex items-center gap-3">
             <LogoNA className="w-8 h-8" />
             <span className="text-sm font-medium">星空AI · 智能门店经营助手</span>
-          </div>
+                  </div>
           <div className="flex gap-6 text-xs text-white/30">
             <a href="#" className="hover:text-white">隐私政策</a>
             <a href="#" className="hover:text-white">服务条款</a>
             <a href="#" className="hover:text-white">联系我们</a>
-          </div>
-        </div>
+                      </div>
+                    </div>
       </footer>
 
       {/* 付款弹窗 */}
       {payingPlan && (
         <PayModal plan={payingPlan} loading={payLoading} success={paySuccess}
           onPay={handlePurchase} onClose={() => { setPayingPlan(null); setPaySuccess(null); }} />
-      )}
-    </div>
+                      )}
+                    </div>
   );
 }
 
@@ -582,7 +653,7 @@ function DownloadPage({ user, navigate }: { user: UserInfo | null; navigate: (p:
     { num: '03', title: '输入授权码', desc: '打开软件，在"激活"界面粘贴个人中心里的授权码，绑定后即可使用' },
   ];
 
-  return (
+        return (
     <section className="pt-32 pb-20 px-6">
       <div className="max-w-4xl mx-auto">
         {/* 标题区 */}
@@ -593,11 +664,11 @@ function DownloadPage({ user, navigate }: { user: UserInfo | null; navigate: (p:
           </div>
           <h1 className="text-4xl md:text-5xl font-display font-bold mb-4">
             下载 星空AI
-          </h1>
+                </h1>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
             安装桌面版，解锁 AI 门店经营助手的全部能力。功能更强，离线可用，数据更安全。
           </p>
-        </div>
+                </div>
 
         {/* 下载卡片 */}
         <motion.div
@@ -609,7 +680,7 @@ function DownloadPage({ user, navigate }: { user: UserInfo | null; navigate: (p:
           {/* 软件图标 */}
           <div className="w-24 h-24 rounded-2xl bg-brand-500/15 flex items-center justify-center mx-auto mb-6 ring-2 ring-brand-500/20">
             <Monitor className="w-12 h-12 text-brand-400" />
-          </div>
+                  </div>
 
           <h2 className="text-2xl font-bold mb-1">星空AI 桌面版</h2>
           <p className="text-white/40 text-sm mb-2">版本 {VERSION} · Windows 64位</p>
@@ -631,8 +702,8 @@ function DownloadPage({ user, navigate }: { user: UserInfo | null; navigate: (p:
             <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-yellow-400/80">
               首次运行时 Windows 可能弹出安全提示，点击"<strong>仍要运行</strong>"即可。软件已经过完整测试，安全无毒。
-            </div>
-          </div>
+                    </div>
+                  </div>
         </motion.div>
 
         {/* 安装步骤 */}
@@ -651,24 +722,24 @@ function DownloadPage({ user, navigate }: { user: UserInfo | null; navigate: (p:
                   <button onClick={() => navigate('register')}
                     className="mt-4 text-brand-400 hover:text-brand-300 text-xs font-medium underline underline-offset-2 transition-colors">
                     立即注册账号 →
-                  </button>
+                        </button>
                 )}
                 {i === 0 && user && !user.is_activated && (
                   <button onClick={() => navigate('pricing')}
                     className="mt-4 text-brand-400 hover:text-brand-300 text-xs font-medium underline underline-offset-2 transition-colors">
                     购买套餐获取授权码 →
-                  </button>
+                      </button>
                 )}
                 {i === 0 && user && user.is_activated && (
                   <button onClick={() => navigate('profile')}
                     className="mt-4 text-green-400 hover:text-green-300 text-xs font-medium underline underline-offset-2 transition-colors">
                     ✓ 已激活，查看授权码 →
-                  </button>
+                      </button>
                 )}
               </motion.div>
             ))}
-          </div>
-        </div>
+                    </div>
+                  </div>
 
         {/* 系统要求 */}
         <div className="glass rounded-2xl p-8 mb-8">
@@ -678,15 +749,15 @@ function DownloadPage({ user, navigate }: { user: UserInfo | null; navigate: (p:
               <div key={i} className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl bg-brand-500/10 flex items-center justify-center flex-shrink-0">
                   <r.icon className="w-5 h-5 text-brand-400" />
-                </div>
-                <div>
+                    </div>
+                    <div>
                   <div className="text-xs text-white/30 mb-0.5">{r.label}</div>
                   <div className="text-sm text-white/70">{r.value}</div>
-                </div>
-              </div>
+                      </div>
+                    </div>
             ))}
-          </div>
-        </div>
+                      </div>
+                      </div>
 
         {/* 未购买用户引导 */}
         {(!user || !user.is_activated) && (
@@ -699,11 +770,11 @@ function DownloadPage({ user, navigate }: { user: UserInfo | null; navigate: (p:
             <div className="flex flex-wrap justify-center gap-3">
               <Btn primary onClick={() => navigate('pricing')}>查看套餐价格</Btn>
               {!user && <Btn onClick={() => navigate('register')}>免费注册账号</Btn>}
-            </div>
-          </div>
+                  </div>
+                </div>
         )}
-      </div>
-    </section>
+              </div>
+            </section>
   );
 }
 
@@ -713,26 +784,26 @@ function DownloadPage({ user, navigate }: { user: UserInfo | null; navigate: (p:
 function PricingPage({ user, openPayModal, navigate }: { user: UserInfo | null; openPayModal: (p: PayingPlan) => void; navigate: (p: Page) => void }) {
   const [selectedPeriods, setSelectedPeriods] = useState<Record<string, number>>({ VIP1: 0, VIP3: 0 });
 
-  return (
+        return (
     <section className="pt-32 pb-20 px-6">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-14">
           <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">套餐与费用</h1>
           <p className="text-white/60 text-lg">一顿饭的钱，帮你省下运营、会计和数据分析的人力成本</p>
-        </div>
+                        </div>
 
         <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
           {PKG_PLANS.map(plan => {
             const pidx = selectedPeriods[plan.id] ?? 0;
             const sel  = plan.prices[pidx];
             const isCurrent = user?.package_type === plan.id && user?.is_activated;
-
-            return (
+                        
+                        return (
               <div key={plan.id} className={`glass rounded-2xl p-8 relative flex flex-col ${plan.highlight ? 'ring-2 ring-yellow-400/30' : ''}`}>
                 {plan.highlight && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-black px-4 py-1 rounded-full text-xs font-semibold">
                     最受欢迎
-                  </div>
+                                </div>
                 )}
                 <h3 className="text-2xl font-display font-bold mb-1">{plan.name}</h3>
                 <p className="text-white/40 text-sm mb-5">{plan.desc}</p>
@@ -748,9 +819,9 @@ function PricingPage({ user, openPayModal, navigate }: { user: UserInfo | null; 
                       }`}>
                       {pp.period}
                       {pp.months >= 12 && <span className="block text-[10px] text-green-400">省最多</span>}
-                    </button>
+                                  </button>
                   ))}
-                </div>
+                          </div>
 
                 {/* 价格 */}
                 <div className="mb-6">
@@ -791,10 +862,10 @@ function PricingPage({ user, openPayModal, navigate }: { user: UserInfo | null; 
                     {user ? '立即购买' : '登录后购买'}
                   </Btn>
                 )}
-              </div>
-            );
+                      </div>
+                        );
           })}
-        </div>
+                    </div>
 
         <p className="text-center text-white/30 mt-10 text-sm">
           需要定制方案？{' '}
@@ -827,9 +898,9 @@ function ContactPage({ user, token }: { user: UserInfo | null; token: string }) 
         <div className="text-6xl mb-4">✅</div>
         <h2 className="text-2xl font-bold mb-3">提交成功！</h2>
         <p className="text-white/50">我们会在 24 小时内与您联系</p>
-      </div>
-    </div>
-  );
+                      </div>
+                      </div>
+                        );
 
   return (
     <section className="pt-32 pb-20 px-6">
@@ -846,8 +917,8 @@ function ContactPage({ user, token }: { user: UserInfo | null; token: string }) 
             {loading ? '提交中...' : <><span>提交需求</span><Rocket className="w-4 h-4" /></>}
           </Btn>
         </form>
-      </div>
-    </section>
+              </div>
+            </section>
   );
 }
 
@@ -871,7 +942,7 @@ function LoginPage({ token, setToken, setUser, navigate }: any) {
     setLoading(false);
   }
 
-  return (
+        return (
     <section className="pt-32 pb-20 px-6">
       <div className="max-w-sm mx-auto">
         <h1 className="text-4xl font-display font-bold mb-2 text-center">登录</h1>
@@ -885,7 +956,7 @@ function LoginPage({ token, setToken, setUser, navigate }: any) {
             没有账号？立即注册
           </button>
         </form>
-      </div>
+                </div>
     </section>
   );
 }
@@ -942,9 +1013,9 @@ function RegisterPage({ setToken, navigate }: any) {
           <GlassInput label="手机号 *" value={phone} onChange={setPhone} type="tel" placeholder="请输入11位手机号" />
 
           {/* 验证码 */}
-          <div>
+                      <div>
             <label className="block text-white/50 text-xs mb-1.5">短信验证码 *</label>
-            <div className="flex gap-2">
+                        <div className="flex gap-2">
               <input value={smsCode} onChange={e => setSmsCode(e.target.value)} placeholder="6位验证码" maxLength={6}
                 className="flex-1 rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500 transition-colors text-white" />
               <button type="button" onClick={sendSms} disabled={smsLoading || countdown > 0 || !phone}
@@ -952,17 +1023,17 @@ function RegisterPage({ setToken, navigate }: any) {
                   countdown > 0 ? 'glass text-white/40' : 'bg-brand-500 text-white hover:bg-brand-400'
                 }`}>
                 {smsLoading ? '发送中' : countdown > 0 ? `${countdown}s` : '获取验证码'}
-              </button>
-            </div>
+                          </button>
+                        </div>
             {smsTip && <p className="mt-1.5 text-xs text-green-400">{smsTip}</p>}
-          </div>
+                  </div>
 
           <GlassInput label="密码 *（至少6位）" value={pw} onChange={setPw} type="password" placeholder="设置登录密码" />
 
-          <div>
+                      <div>
             <GlassInput label="销售码（选填）" value={salesCode} onChange={setSalesCode} placeholder="如 A001，没有可不填" />
             <p className="mt-1 text-xs text-white/25">由销售人员提供，绑定后不可更改</p>
-          </div>
+                  </div>
 
           {err && <ErrBox msg={err} />}
           <Btn type="submit" primary full disabled={loading}>{loading ? '注册中...' : '立即注册'}</Btn>
@@ -970,7 +1041,7 @@ function RegisterPage({ setToken, navigate }: any) {
             已有账号？去登录
           </button>
         </form>
-      </div>
+                    </div>
     </section>
   );
 }
@@ -978,14 +1049,14 @@ function RegisterPage({ setToken, navigate }: any) {
 // ════════════════════════════════════════════════════════════════════════════
 // 个人中心
 // ════════════════════════════════════════════════════════════════════════════
-function ProfilePage({ user, token, loadUser, openPayModal, navigate }: any) {
+function ProfilePage({ user, token, loadUser, openPayModal, navigate, orderRefreshKey = 0 }: any) {
   const [orders, setOrders] = useState<any[]>([]);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!token) { navigate('login'); return; }
     apiRequest<any[]>('/user/orders', {}, token).then(setOrders).catch(() => {});
-  }, [token]);
+  }, [token, orderRefreshKey]); // orderRefreshKey 变化时重新加载订单
 
   function copyLicense() {
     if (!user?.license_key) return;
@@ -1003,31 +1074,31 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate }: any) {
   if (!user) return (
     <div className="flex items-center justify-center pt-40">
       <div className="glass rounded-2xl px-12 py-8 text-white/40">加载中...</div>
-    </div>
-  );
+                </div>
+        );
 
   const pkgLabel = user.package_type === 'VIP3' ? '专业版' : user.package_type === 'VIP1' ? '基础版' : '未激活';
   const isVip3   = user.is_activated && user.package_type === 'VIP3';
   const isVip1   = user.is_activated && user.package_type === 'VIP1';
 
-  return (
+        return (
     <section className="pt-32 pb-20 px-6">
       <div className="max-w-3xl mx-auto space-y-6">
         <h1 className="text-3xl font-display font-bold">个人中心</h1>
 
         {/* 账户状态卡 */}
-        <div className="glass rounded-2xl p-8">
+                <div className="glass rounded-2xl p-8">
           <div className="flex justify-between items-start flex-wrap gap-4 mb-6">
-            <div>
+                    <div>
               <div className="text-lg font-semibold mb-1">
                 📱 {user.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}
-              </div>
+                    </div>
               {user.sales_name && <div className="text-xs text-white/40">归属销售：{user.sales_name}（{user.sales_code}）</div>}
-            </div>
+                    </div>
             <span className={`px-4 py-1.5 rounded-full text-sm font-semibold ${user.is_activated ? 'bg-green-500/15 text-green-400' : 'bg-white/5 text-white/40'}`}>
               {user.is_activated ? `✓ ${pkgLabel}` : '⊘ 未激活'}
             </span>
-          </div>
+                  </div>
 
           {/* 套餐数据 */}
           {user.is_activated && user.expire_date && (
@@ -1042,7 +1113,7 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate }: any) {
                   <div className={`font-bold text-base ${s.color}`}>{s.value}</div>
                 </div>
               ))}
-            </div>
+              </div>
           )}
 
           {/* 软件授权码 */}
@@ -1051,7 +1122,7 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate }: any) {
               <div className="flex items-center gap-2 text-xs text-white/40 mb-3">
                 🔑 <span className="font-medium text-white/60">桌面软件授权码</span>
                 <span>· 与手机号唯一绑定，请勿泄露</span>
-              </div>
+                    </div>
               <div className="flex items-center gap-3">
                 <code className="flex-1 text-lg font-bold tracking-[0.2em] text-brand-300 bg-white/5 px-4 py-3 rounded-lg border border-white/10 select-all">
                   {user.license_key}
@@ -1059,16 +1130,16 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate }: any) {
                 <button onClick={copyLicense}
                   className={`flex items-center gap-1.5 px-4 py-3 rounded-lg text-sm font-medium transition-all ${copied ? 'bg-green-500/80 text-white' : 'bg-brand-500 text-white hover:bg-brand-400'}`}>
                   {copied ? <><Check className="w-4 h-4" />已复制</> : <><Copy className="w-4 h-4" />复制</>}
-                </button>
-              </div>
+                      </button>
+                  </div>
               <p className="mt-2 text-xs text-white/25">在桌面软件"激活"界面粘贴此码即可绑定 · 续费后授权码不变，到期时间自动更新</p>
-            </div>
+                </div>
           )}
 
           {!user.license_key && !user.is_activated && (
             <div className="bg-yellow-500/8 rounded-xl border border-yellow-500/20 p-4 text-sm text-yellow-400/80">
               💡 购买套餐后将自动生成您的专属软件授权码
-            </div>
+              </div>
           )}
 
           {/* VIP1 升级按钮 */}
@@ -1090,7 +1161,7 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate }: any) {
                 {[{ period: '月付', months: 1, price: 299 }, { period: '季付', months: 3, price: 888 }, { period: '年付', months: 12, price: 3388 }].map(opt => {
                   const credit = calcCredit(user.days_left ?? 0);
                   const final  = Math.max(0, opt.price - credit);
-                  return (
+        return (
                     <button key={opt.period} onClick={() => openUpgradeModal(opt.months, opt.price, opt.period)}
                       className="py-3 px-2 rounded-xl border border-yellow-500/25 bg-yellow-500/5 hover:bg-yellow-500/10 transition-all text-center cursor-pointer">
                       <div className="text-xs text-white/40 mb-1">{opt.period}</div>
@@ -1099,8 +1170,8 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate }: any) {
                     </button>
                   );
                 })}
-              </div>
-            </div>
+                  </div>
+                </div>
           )}
 
           {/* VIP3 AI 额度 */}
@@ -1109,16 +1180,16 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate }: any) {
               <div className="flex justify-between items-center mb-4">
                 <span className="text-sm font-medium text-white/60">本月 AI 额度</span>
                 <span className="text-xs text-white/30">购买加速包可立即追加次数</span>
-              </div>
+                  </div>
               <div className="grid grid-cols-3 gap-3">
                 <QuotaBar label="AI 生图"  remaining={user.ai_image_quota ?? 0} base={20} color="bg-brand-500" />
                 <QuotaBar label="AI 视频"  remaining={user.ai_video_quota ?? 0} base={15} color="bg-purple-500" />
                 <QuotaBar label="AI 剪辑"  remaining={user.ai_edit_quota  ?? 0} base={15} color="bg-pink-500" />
-              </div>
-            </div>
+                  </div>
+                  </div>
           )}
-        </div>
-
+                </div>
+                
         {/* 购买 / 续费 */}
         <div className="glass rounded-2xl p-8">
           <h3 className="font-semibold text-lg mb-5">购买 / 续费套餐</h3>
@@ -1134,7 +1205,7 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate }: any) {
                       <span className={`font-bold ${plan.highlight ? 'text-yellow-400' : 'text-brand-400'}`}>¥{pp.price}</span>
                     </button>
                   ))}
-                </div>
+                      </div>
               </div>
             ))}
 
@@ -1146,12 +1217,12 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate }: any) {
                 <button onClick={() => openPayModal({ name: 'AI 加速包', packageType: 'ADDON', period: '一次性', price: ADDON.price, months: 0 })}
                   className="w-full py-3 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white font-semibold text-sm hover:opacity-90 transition-opacity">
                   ¥88 立即购买
-                </button>
+                    </button>
               </div>
             )}
-          </div>
-        </div>
-
+                  </div>
+                </div>
+                
         {/* 订单记录 */}
         <div className="glass rounded-2xl p-8">
           <h3 className="font-semibold text-lg mb-5">订单记录</h3>
@@ -1169,15 +1240,15 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate }: any) {
                     {o.amount && <span className="text-yellow-400 font-semibold text-sm">¥{o.amount}</span>}
                     <span className={`text-xs px-3 py-1 rounded-full ${o.status === 'paid' ? 'bg-green-500/15 text-green-400' : 'bg-yellow-500/15 text-yellow-400'}`}>
                       {o.status === 'paid' ? '已完成' : '待处理'}
-                    </span>
+                              </span>
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
-      </div>
-    </section>
+                </div>
+              </div>
+            </section>
   );
 }
 
@@ -1190,8 +1261,8 @@ function PayModal({ plan, loading, success, onPay, onClose }: {
   onPay: () => void; onClose: () => void;
 }) {
   const payAmount = plan.isUpgrade ? (plan.finalPrice ?? plan.price) : plan.price;
-
-  return (
+                    
+                    return (
     <div className="fixed inset-0 bg-black/80 z-[2000] flex items-center justify-center p-6" onClick={e => e.target === e.currentTarget && onClose()}>
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
         className="glass rounded-2xl p-8 max-w-sm w-full">
@@ -1207,7 +1278,7 @@ function PayModal({ plan, loading, success, onPay, onClose }: {
             <p className="text-green-400 text-xl font-bold mb-6">剩余 {success.days_left} 天</p>
             <p className="text-white/25 text-xs mb-5">重启桌面软件后，新功能将自动解锁</p>
             <Btn primary full onClick={onClose}>返回个人中心</Btn>
-          </div>
+                        </div>
         ) : (
           <>
             <h3 className="text-xl font-bold mb-1">{plan.isUpgrade ? '⚡ 升级专业版' : '确认购买'}</h3>
@@ -1222,20 +1293,20 @@ function PayModal({ plan, loading, success, onPay, onClose }: {
                   <div className="flex justify-between px-3 py-2 bg-green-500/8 rounded-lg">
                     <span className="text-green-400 text-sm">基础版剩余天数抵扣</span>
                     <span className="text-green-400 font-semibold">-¥{plan.credit}</span>
-                  </div>
+                        </div>
                 </>
               )}
               <div className="flex justify-between pt-2 border-t border-white/8">
                 <span className="text-white/40">实付金额</span>
                 <span className="text-2xl font-bold text-yellow-400">¥{payAmount}</span>
-              </div>
-            </div>
+                        </div>
+                      </div>
 
             {/* 二维码占位 */}
             <div className="bg-white rounded-xl w-40 h-40 mx-auto mb-4 flex flex-col items-center justify-center">
               <div className="text-4xl">📱</div>
               <div className="text-gray-700 text-xs mt-2 text-center">微信/支付宝<br />扫码付款</div>
-            </div>
+                </div>
             <p className="text-center text-white/30 text-xs mb-4">付款完成后点击下方按钮立即生效</p>
 
             <Btn primary full disabled={loading} onClick={onPay}>
@@ -1245,7 +1316,7 @@ function PayModal({ plan, loading, success, onPay, onClose }: {
           </>
         )}
       </motion.div>
-    </div>
+              </div>
   );
 }
 
@@ -1261,7 +1332,10 @@ const Row = ({ label, value, strike = false }: { label: string; value: string; s
 // ════════════════════════════════════════════════════════════════════════════
 function AdminPage() {
   const [adminToken, setAdminToken] = useState(localStorage.getItem('adminToken') || '');
-  const [loginForm, setLoginForm]   = useState({ username: '', password: '' });
+  const [smsCode, setSmsCode]       = useState('');
+  const [codeSent, setCodeSent]     = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
   const [loginErr, setLoginErr]     = useState('');
   const [tab, setTab]   = useState<'orders' | 'users' | 'sales' | 'content'>('orders');
   const [orders, setOrders]     = useState<any[]>([]);
@@ -1282,10 +1356,24 @@ function AdminPage() {
     const t = await r.text(); const d = t ? JSON.parse(t) : {}; if (!r.ok) throw new Error(d.error || 'Error'); return d as T;
   }
 
-  async function adminLogin(e: React.FormEvent) {
-    e.preventDefault(); setLoginErr('');
-    try { const d = await apiRequest<{ token: string }>('/admin/login', { method: 'POST', body: JSON.stringify(loginForm) }); localStorage.setItem('adminToken', d.token); setAdminToken(d.token); }
-    catch (e: any) { setLoginErr(e.message); }
+  async function handleSendCode() {
+    setSendingCode(true); setLoginErr('');
+    try {
+      await apiRequest('/admin/send-code', { method: 'POST' });
+      setCodeSent(true);
+      setTimeout(() => setCodeSent(false), 60000); // 60秒后允许重新发送
+    } catch (e: any) { setLoginErr(e.message); }
+    setSendingCode(false);
+  }
+
+  async function handleLogin() {
+    if (!smsCode.trim()) { setLoginErr('请输入验证码'); return; }
+    setLoginLoading(true); setLoginErr('');
+    try {
+      const d = await apiRequest<{ token: string }>('/admin/login', { method: 'POST', body: JSON.stringify({ code: smsCode.trim() }) });
+      localStorage.setItem('adminToken', d.token); setAdminToken(d.token);
+    } catch (e: any) { setLoginErr(e.message); }
+    setLoginLoading(false);
   }
 
   useEffect(() => {
@@ -1300,24 +1388,49 @@ function AdminPage() {
     <section className="pt-32 pb-20 px-6">
       <div className="max-w-sm mx-auto">
         <h1 className="text-3xl font-display font-bold mb-8 text-center">管理员登录</h1>
-        <form onSubmit={adminLogin} className="glass rounded-2xl p-8 space-y-4">
-          <GlassInput label="用户名" value={loginForm.username} onChange={v => setLoginForm(p => ({ ...p, username: v }))} />
-          <GlassInput label="密码" value={loginForm.password} onChange={v => setLoginForm(p => ({ ...p, password: v }))} type="password" />
+        <div className="glass rounded-2xl p-8 space-y-4">
+          <p className="text-sm text-white/40 text-center">验证码将发送到管理员手机</p>
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <GlassInput label="短信验证码" value={smsCode} onChange={v => { setSmsCode(v); setLoginErr(''); }} />
+            </div>
+            <button
+              type="button"
+              onClick={handleSendCode}
+              disabled={sendingCode || codeSent}
+              className="shrink-0 px-4 py-3 rounded-xl text-sm font-medium transition-all border"
+              style={{
+                background: codeSent ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.15)',
+                border: '1px solid rgba(99,102,241,0.3)',
+                color: codeSent ? '#6366f1' : '#a5b4fc',
+                cursor: (sendingCode || codeSent) ? 'not-allowed' : 'pointer',
+                opacity: (sendingCode || codeSent) ? 0.6 : 1,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {sendingCode ? '发送中...' : codeSent ? '已发送' : '获取验证码'}
+            </button>
+          </div>
           {loginErr && <ErrBox msg={loginErr} />}
-          <Btn type="submit" primary full>登录</Btn>
-        </form>
+          <Btn primary full onClick={handleLogin} disabled={loginLoading}>
+            {loginLoading ? '验证中...' : '登录'}
+          </Btn>
+        </div>
       </div>
     </section>
   );
 
-  return (
+        return (
     <section className="pt-32 pb-20 px-6">
       <div className="max-w-5xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">管理后台</h1>
-          <button onClick={() => { localStorage.removeItem('adminToken'); setAdminToken(''); }}
+          <button onClick={async () => {
+              try { await fetch('/api/admin/logout', { method: 'POST', headers: { 'X-Admin-Token': adminToken } }); } catch (_) {}
+              localStorage.removeItem('adminToken'); setAdminToken('');
+            }}
             className="glass text-white/50 hover:text-white text-sm px-4 py-2 rounded-lg transition-all">退出</button>
-        </div>
+                </div>
 
         <div className="flex gap-2 mb-6 pb-4 border-b border-white/8">
           {(['orders','users','sales','content'] as const).map(t => (
@@ -1325,8 +1438,8 @@ function AdminPage() {
               className={`px-4 py-2 rounded-lg text-sm transition-all ${tab === t ? 'bg-brand-500 text-white' : 'glass text-white/50 hover:text-white'}`}>
               {{ orders: '📦 订单', users: '👥 用户', sales: '🏷️ 销售', content: '📝 内容' }[t]}
             </button>
-          ))}
-        </div>
+                  ))}
+                </div>
 
         {tab === 'orders' && <AdminTable headers={['#','客户','联系','套餐','金额','状态','销售','到期','时间']}>
           {orders.map(o => <tr key={o.id} className="border-b border-white/5">
@@ -1352,7 +1465,7 @@ function AdminPage() {
 
         {tab === 'sales' && (
           <div className="space-y-4">
-            <div className="glass rounded-2xl p-6">
+                  <div className="glass rounded-2xl p-6">
               <h4 className="font-semibold mb-4">添加销售</h4>
               <div className="grid md:grid-cols-4 gap-3">
                 {(['name','code_prefix','phone','password'] as const).map(k => (
@@ -1360,7 +1473,7 @@ function AdminPage() {
                     value={newSales[k]} onChange={e => setNewSales(p => ({ ...p, [k]: e.target.value }))}
                     className="rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500 text-white" />
                 ))}
-              </div>
+                    </div>
               <div className="flex items-center gap-3 mt-3">
                 <Btn primary onClick={async () => {
                   try { await aPost('/admin/sales', newSales); const s = await aGet<any[]>('/admin/sales'); setSales(s); setNewSales({ name:'', code_prefix:'', phone:'', password:'' }); setMsg('添加成功'); setTimeout(() => setMsg(''), 2000); }
@@ -1382,10 +1495,10 @@ function AdminPage() {
                     await fetch(`/api/admin/sales/${s.id}`, { method: 'DELETE', headers: h });
                     const ss = await aGet<any[]>('/admin/sales'); setSales(ss);
                   }} className="text-red-400 hover:text-red-300 border border-red-400/30 hover:border-red-400/60 text-xs px-3 py-1.5 rounded-lg transition-all">删除</button>
-                </td>
+                            </td>
               </tr>)}
             </AdminTable>
-          </div>
+                    </div>
         )}
 
         {tab === 'content' && (
@@ -1395,7 +1508,7 @@ function AdminPage() {
                 <label className="block text-white/40 text-xs mb-1.5">{c.key}</label>
                 <textarea value={editedContent[c.key] ?? c.value} onChange={e => setEditedContent(p => ({ ...p, [c.key]: e.target.value }))} rows={2}
                   className="w-full rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500 text-white resize-vertical" />
-              </div>
+                  </div>
             ))}
             <div className="flex items-center gap-3 pt-2">
               <Btn primary onClick={async () => {
@@ -1403,11 +1516,11 @@ function AdminPage() {
                 catch (e: any) { setMsg(e.message); }
               }}>保存内容</Btn>
               {msg && <span className="text-green-400 text-sm">{msg}</span>}
-            </div>
+                </div>
           </div>
         )}
-      </div>
-    </section>
+              </div>
+            </section>
   );
 }
 
@@ -1449,9 +1562,9 @@ function SalesPage() {
           {loginErr && <ErrBox msg={loginErr} />}
           <Btn type="submit" primary full>登录</Btn>
         </form>
-      </div>
+          </div>
     </section>
-  );
+    );
 
   return (
     <section className="pt-32 pb-20 px-6">
@@ -1460,16 +1573,16 @@ function SalesPage() {
           <h1 className="text-2xl font-bold">销售工作台</h1>
           <button onClick={() => { localStorage.removeItem('salesToken'); setSalesToken(''); }}
             className="glass text-white/50 hover:text-white text-sm px-4 py-2 rounded-lg transition-all">退出</button>
-        </div>
+      </div>
 
         <div className="flex gap-2 mb-6 pb-4 border-b border-white/8">
           {(['customers','orders'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2 rounded-lg text-sm transition-all ${tab === t ? 'bg-brand-500 text-white' : 'glass text-white/50 hover:text-white'}`}>
               {{ customers: '👥 我的客户', orders: '📦 我的订单' }[t]}
-            </button>
-          ))}
-        </div>
+              </button>
+            ))}
+          </div>
 
         {tab === 'customers' && <AdminTable headers={['手机','套餐','到期时间','剩余天数','状态','注册时间']}>
           {customers.map(c => <tr key={c.id} className="border-b border-white/5">
@@ -1491,7 +1604,7 @@ function SalesPage() {
             )}
           </tr>)}
         </AdminTable>}
-      </div>
+          </div>
     </section>
   );
 }
@@ -1511,13 +1624,13 @@ function QuotaBar({ label, remaining, base, color }: { label: string; remaining:
         <span className={`font-semibold ${isEmpty ? 'text-red-400' : 'text-white/70'}`}>
           {remaining}次{extra > 0 && <span className="text-orange-400 ml-1">+{extra}</span>}
         </span>
-      </div>
+          </div>
       <div className="h-1 bg-white/8 rounded-full">
         <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${100 - pct}%` }} />
-      </div>
+          </div>
       <div className="mt-1.5 text-[10px] text-white/25">
         {isEmpty ? '已用完，请购买加速包' : `基础 ${base - baseUsed}/${base} 剩余`}
-      </div>
+        </div>
     </div>
   );
 }
