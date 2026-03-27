@@ -68,10 +68,12 @@ const PACKAGE_QUOTA: Record<string, { image: number; video: number; edit: number
 // ════════════════════════════════════════════════════════════════════════════
 // 微信支付配置（V2版本）
 // ════════════════════════════════════════════════════════════════════════════
-const WECHAT_MCH_ID = process.env.WECHAT_MCH_ID || '';
+import { WECHAT_CONFIG } from './wechat-config.js';
+
+const WECHAT_MCH_ID = process.env.WECHAT_MCH_ID || WECHAT_CONFIG.mch_id;
 const WECHAT_API_KEY = process.env.WECHAT_API_KEY || '';
-const WECHAT_NOTIFY_URL = process.env.WECHAT_NOTIFY_URL || '';
-const WECHAT_APPID = process.env.WECHAT_APPID || '';
+const WECHAT_NOTIFY_URL = process.env.WECHAT_NOTIFY_URL || WECHAT_CONFIG.notify_url;
+const WECHAT_APPID = process.env.WECHAT_APPID || WECHAT_CONFIG.appid;
 
 /**
  * 微信支付 V2 签名生成
