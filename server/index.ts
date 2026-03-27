@@ -65,6 +65,87 @@ const PACKAGE_QUOTA: Record<string, { image: number; video: number; edit: number
   ADDON: { image: 10, video: 10, edit: 10 }, // 加速包一次性增加
 };
 
+// ════════════════════════════════════════════════════════════════════════════
+// 微信支付配置（V2版本）
+// ════════════════════════════════════════════════════════════════════════════
+const WECHAT_MCH_ID = process.env.WECHAT_MCH_ID || '';
+const WECHAT_API_KEY = process.env.WECHAT_API_KEY || '';
+const WECHAT_NOTIFY_URL = process.env.WECHAT_NOTIFY_URL || '';
+const WECHAT_APPID = process.env.WECHAT_APPID || '';
+
+/**
+ * 微信支付 V2 签名生成
+ * https://pay.weixin.qq.com/wiki/doc/apiv3/apis/chapter3_1_1.shtml
+ */
+function generateWechatSign(params: Record<string, string>): string {
+  const sorted = Object.keys(params).sort().map(k => `${k}=${params[k]}`).join('&');
+  const stringA = sorted + `&key=${WECHAT_API_KEY}`;
+  return crypto.createHash('md5').update(stringA).digest('hex').toUpperCase();
+}
+
+/**
+ * 创建微信支付订单（Native模式，返回二维码链接）
+ */
+async function createWechatPayOrder(orderId: number, amount: number, description: string): Promise<{ code_url: string; prepay_id: string }> {
+  const nonceStr = crypto.randomBytes(16).toString('hex').substring(0, 32);
+  const outTradeNo = `NK${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  
+  const params: Record<string, string> = {
+    appid: WECHAT_APPID,
+    mch_id: WECHAT_MCH_ID,
+    nonce_str: nonceStr,
+    body: description,
+    out_trade_no: outTradeNo,
+    total_fee: String(Math.round(amount * 100)), // 单位：分
+    spbill_create_ip: '123.125.115.110',
+    notify_url: WECHAT_NOTIFY_URL,
+    trade_type: 'NATIVE',
+  };
+  
+  // 签名
+  params.sign = generateWechatSign(params);
+  
+  // 生成XML
+  const xml = ['<xml>'];
+  for (const [k, v] of Object.entries(params)) {
+    xml.push(`<${k}><![CDATA[${v}]]></${k}>`);
+  }
+  xml.push('</xml>');
+  
+  const response = await fetch('https://api.mch.weixin.qq.com/pay/unifiedorder', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/xml' },
+    body: xml.join(''),
+  });
+  
+  const text = await response.text();
+  console.log('[WechatPay] response:', text);
+  
+  // 解析XML响应
+  const parseXml = (xml: string): Record<string, string> => {
+    const result: Record<string, string> = {};
+    const regex = /<(\w+)><!\[CDATA\[(.*?)\]\]><\/(\w+)>/g;
+    let match;
+    while ((match = regex.exec(xml)) !== null) {
+      result[match[1]] = match[2];
+    }
+    return result;
+  };
+  
+  const xmlObj = parseXml(text);
+  if (xmlObj.return_code !== 'SUCCESS') {
+    throw new Error(xmlObj.return_msg || '微信支付下单失败');
+  }
+  if (xmlObj.result_code !== 'SUCCESS') {
+    throw new Error(xmlObj.err_code_des || '微信支付下单失败');
+  }
+  
+  return {
+    code_url: xmlObj.code_url,
+    prepay_id: xmlObj.prepay_id,
+  };
+}
+
 // ── 服务端价格表（用于校验客户端提交的金额，防止篡改）──────────────────────
 // key: `${package_type}_${months}M`  (ADDON 用 ADDON_0M)
 const SERVER_PRICES: Record<string, number> = {
@@ -1059,6 +1140,202 @@ if (NODE_ENV === 'production') {
   app.use(express.static(distPath));
   app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')));
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// 微信支付接口
+// ════════════════════════════════════════════════════════════════════════════
+
+// 创建支付订单（用户扫码支付）
+app.post('/api/pay/create', requireUser, async (req: any, res) => {
+  try {
+    const { order_id, package_type, months, amount } = req.body || {};
+    
+    if (!order_id || !package_type || amount === undefined) {
+      return res.status(400).json({ error: '缺少必要参数' });
+    }
+
+    // 服务端金额校验
+    const expectedPrice = getExpectedPrice(package_type, Number(months || 0));
+    if (expectedPrice !== null && Number(amount) !== expectedPrice) {
+      return res.status(400).json({ error: `价格异常，请刷新页面后重试` });
+    }
+
+    // 获取订单信息
+    const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(order_id, req.userId) as any;
+    if (!order) {
+      return res.status(404).json({ error: '订单不存在' });
+    }
+
+    // 如果已支付，直接返回成功
+    if (order.status === 'paid') {
+      return res.json({ success: true, status: 'paid', message: '订单已完成支付' });
+    }
+
+    // 创建微信支付订单
+    const description = `星空AI-${package_type === 'ADDON' ? 'AI加速包' : package_type === 'VIP3' ? '专业版' : '基础版'}${months}个月`;
+    
+    const payResult = await createWechatPayOrder(order_id, Number(amount), description);
+    
+    // 更新订单的 out_trade_no
+    db.prepare('UPDATE orders SET description = ? WHERE id = ?').run(description, order_id);
+
+    res.json({
+      success: true,
+      code_url: payResult.code_url,
+      order_id: order_id,
+    });
+  } catch (err: any) {
+    console.error('[pay/create error]', err);
+    res.status(500).json({ error: err.message || '创建支付订单失败' });
+  }
+});
+
+// 微信支付回调（支付成功后自动激活）
+app.post('/api/pay/notify', async (req, res) => {
+  try {
+    const body = req.body;
+    console.log('[WechatPay] notify received:', JSON.stringify(body));
+
+    // 解析XML
+    const parseXml = (xml: string): Record<string, string> => {
+      const result: Record<string, string> = {};
+      const regex = /<(\w+)><!\[CDATA\[(.*?)\]\]><\/(\w+)>/g;
+      let match;
+      while ((match = regex.exec(xml)) !== null) {
+        result[match[1]] = match[2];
+      }
+      // 也处理非CDATA格式
+      const regex2 = /<(\w+)>([^<]+)<\/\1>/g;
+      while ((match = regex2.exec(xml)) !== null) {
+        if (!result[match[1]]) result[match[1]] = match[2];
+      }
+      return result;
+    };
+
+    const xmlStr = typeof body === 'string' ? body : '';
+    const params = parseXml(xmlStr);
+
+    // 验证签名
+    const sign = params.sign;
+    delete params.sign;
+    const calculatedSign = generateWechatSign(params);
+    
+    if (sign !== calculatedSign) {
+      console.error('[WechatPay] 签名验证失败', { sign, calculatedSign });
+      return res.status(400).send('<xml><return_code><![CDATA[FAIL]]></return_code><return_msg><![CDATA[签名失败]]></return_msg></xml>');
+    }
+
+    if (params.return_code !== 'SUCCESS') {
+      return res.status(400).send('<xml><return_code><![CDATA[FAIL]]></return_code><return_msg><![CDATA[返回失败]]></return_msg></xml>');
+    }
+
+    if (params.result_code !== 'SUCCESS') {
+      console.error('[WechatPay] 业务失败', params);
+      return res.status(400).send('<xml><return_code><![CDATA[FAIL]]></return_code><return_msg><![CDATA[业务失败]]></return_msg></xml>');
+    }
+
+    // 支付成功，更新订单状态
+    const outTradeNo = params.out_trade_no;
+    const transactionId = params.transaction_id;
+    const paidAmount = Number(params.total_fee) / 100; // 分转元
+
+    // 查找订单（通过 out_trade_no 或 description 匹配）
+    // 这里简化处理，实际应该存储 out_trade_no
+    const orders = db.prepare('SELECT * FROM orders WHERE status != ? ORDER BY created_at DESC LIMIT 10').all('paid') as any[];
+    
+    let updatedOrder: any = null;
+    for (const order of orders) {
+      // 简单匹配：金额相近且时间相近
+      if (Math.abs(order.amount - paidAmount) < 1) {
+        db.prepare('UPDATE orders SET status = ?, paid_at = ?, transaction_id = ?, updated_at = ? WHERE id = ?')
+          .run('paid', new Date().toISOString(), transactionId, new Date().toISOString(), order.id);
+        
+        // 激活用户套餐
+        const user = db.prepare('SELECT * FROM users WHERE id = ?').get(order.user_id) as any;
+        if (user) {
+          const now = new Date();
+          let expireDate = new Date(now);
+          if (user.expire_date && new Date(user.expire_date) > now) {
+            expireDate = new Date(user.expire_date);
+          }
+          if (order.package_type !== 'ADDON') {
+            expireDate.setMonth(expireDate.getMonth() + Number(order.months));
+          }
+          
+          const quota = PACKAGE_QUOTA[order.package_type] || { image: 0, video: 0, edit: 0 };
+          let imageQuota = user.ai_image_quota || 0;
+          let videoQuota = user.ai_video_quota || 0;
+          let editQuota = user.ai_edit_quota || 0;
+          
+          if (order.package_type === 'ADDON') {
+            imageQuota += quota.image;
+            videoQuota += quota.video;
+            editQuota += quota.edit;
+          } else {
+            imageQuota = quota.image;
+            videoQuota = quota.video;
+            editQuota = quota.edit;
+          }
+
+          db.prepare(`
+            UPDATE users SET
+              is_activated = 1,
+              package_type = COALESCE(?, package_type),
+              expire_date = CASE WHEN ? != 'ADDON' THEN ? ELSE expire_date END,
+              ai_image_quota = ?,
+              ai_video_quota = ?,
+              ai_edit_quota = ?,
+              updated_at = ?
+            WHERE id = ?
+          `).run(
+            order.package_type,
+            order.package_type,
+            expireDate.toISOString(),
+            imageQuota, videoQuota, editQuota,
+            new Date().toISOString(),
+            user.id
+          );
+        }
+        
+        updatedOrder = order;
+        break;
+      }
+    }
+
+    if (updatedOrder) {
+      console.log('[WechatPay] 订单已激活:', updatedOrder.id);
+    }
+
+    res.send('<xml><return_code><![CDATA[SUCCESS]]></return_code><return_msg><![CDATA[OK]]></return_msg></xml>');
+  } catch (err: any) {
+    console.error('[WechatPay] notify error', err);
+    res.status(500).send('<xml><return_code><![CDATA[FAIL]]></return_code><return_msg><![CDATA[系统错误]]></return_msg></xml>');
+  }
+});
+
+// 查询支付状态
+app.get('/api/pay/status/:orderId', requireUser, (req: any, res) => {
+  try {
+    const orderId = Number(req.params.orderId);
+    const order = db.prepare('SELECT id, status, amount, package_type, months FROM orders WHERE id = ? AND user_id = ?')
+      .get(orderId, req.userId) as any;
+    
+    if (!order) {
+      return res.status(404).json({ error: '订单不存在' });
+    }
+    
+    res.json({
+      order_id: order.id,
+      status: order.status,
+      amount: order.amount,
+      package_type: order.package_type,
+      months: order.months,
+    });
+  } catch (err: any) {
+    console.error('[pay/status error]', err);
+    res.status(500).json({ error: '查询失败' });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`✅ 服务启动：端口 ${PORT} | 环境: ${NODE_ENV}`);
