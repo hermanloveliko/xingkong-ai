@@ -56,14 +56,14 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}, token?
 // ─── 套餐配置 ─────────────────────────────────────────────────────────────────
 const PKG_PLANS = [
   {
-    id: 'VIP1', name: '基础版', desc: '适合入门经营管理',
+    id: 'VIP1', name: '基础�?, desc: '适合入门经营管理',
     color: 'brand-400',
     features: [
-      '经营复盘（AI 门店大脑对话）',
-      '日常管理（SOP / 待办事项）',
-      '员工管理（档案 / 排班 / 工资）',
+      '经营复盘（AI 门店大脑对话�?,
+      '日常管理（SOP / 待办事项�?,
+      '员工管理（档�?/ 排班 / 工资�?,
     ],
-    locked: ['AI 营销工坊（专业版功能）', '经营分析（专业版功能）', '财务报税（专业版功能）'],
+    locked: ['AI 营销工坊（专业版功能�?, '经营分析（专业版功能�?, '财务报税（专业版功能�?],
     prices: [
       { period: '月付', months: 1,  price: 99  },
       { period: '季付', months: 3,  price: 288 },
@@ -71,16 +71,16 @@ const PKG_PLANS = [
     ],
   },
   {
-    id: 'VIP3', name: '专业版', desc: '全功能解锁，AI 营销无限可能',
+    id: 'VIP3', name: '专业�?, desc: '全功能解锁，AI 营销无限可能',
     color: 'yellow-400',
     highlight: true,
     features: [
-      '经营复盘（AI 门店大脑对话）',
-      '日常管理（SOP / 待办事项）',
-      '员工管理（档案 / 排班 / 工资）',
-      'AI 营销工坊（生图20张 · 视频15个 · 剪辑15次 · 账号监控）',
-      '经营分析（KPI 图表 · 月度深度报告）',
-      '财务报税（记账 · 发票 · 季报汇总）',
+      '经营复盘（AI 门店大脑对话�?,
+      '日常管理（SOP / 待办事项�?,
+      '员工管理（档�?/ 排班 / 工资�?,
+      'AI 营销工坊（生�?0�?· 视频15�?· 剪辑15�?· 账号监控�?,
+      '经营分析（KPI 图表 · 月度深度报告�?,
+      '财务报税（记�?· 发票 · 季报汇总）',
     ],
     locked: [],
     prices: [
@@ -92,7 +92,7 @@ const PKG_PLANS = [
 ];
 const ADDON = { id: 'ADDON', name: 'AI 加速包', price: 88, months: 0 };
 
-// ─── 轮播图 ───────────────────────────────────────────────────────────────────
+// ─── 轮播�?───────────────────────────────────────────────────────────────────
 const galleryImages = [
   { src: '/微信图片_20260307001457.png', alt: '产品截图 1' },
   { src: '/微信图片_20260307001513.png', alt: '产品截图 2' },
@@ -209,8 +209,7 @@ const ProblemCard = ({ title, description, oldWay, newWay }: { title: string; de
   </div>
 );
 
-// 表单输入框（统一风格）
-const GlassInput = ({ label, value, onChange, type = 'text', placeholder = '', textarea = false }: {
+// 表单输入框（统一风格�?const GlassInput = ({ label, value, onChange, type = 'text', placeholder = '', textarea = false }: {
   label: string; value: string; onChange: (v: string) => void;
   type?: string; placeholder?: string; textarea?: boolean;
 }) => (
@@ -229,8 +228,7 @@ const ErrBox = ({ msg }: { msg: string }) => (
 );
 
 // ════════════════════════════════════════════════════════════════════════════
-// 主组件
-// ════════════════════════════════════════════════════════════════════════════
+// 主组�?// ════════════════════════════════════════════════════════════════════════════
 export default function App() {
   const [page, setPage]   = useState<Page>('home');
   const [user, setUser]   = useState<UserInfo | null>(null);
@@ -242,7 +240,8 @@ export default function App() {
   const [payingPlan, setPayingPlan]   = useState<PayingPlan | null>(null);
   const [payLoading, setPayLoading]   = useState(false);
   const [paySuccess, setPaySuccess]   = useState<{ expire_date: string; days_left: number; package_type?: string } | null>(null);
-  // 订单刷新触发器（购买成功后 +1，ProfilePage 监听并重新加载订单）
+  const [payQrCode, setPayQrCode]     = useState<string | null>(null);
+  // 订单刷新触发器（购买成功�?+1，ProfilePage 监听并重新加载订单）
   const [orderRefreshKey, setOrderRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -286,14 +285,42 @@ export default function App() {
     try {
       const endpoint   = payingPlan.isUpgrade ? '/orders/upgrade' : '/orders/purchase';
       const payAmount  = payingPlan.isUpgrade ? (payingPlan.finalPrice ?? payingPlan.price) : payingPlan.price;
-      const data = await apiRequest<{ expire_date: string; days_left: number; package_type: string }>(
-        endpoint,
-        { method: 'POST', body: JSON.stringify({ plan: payingPlan.name, package_type: payingPlan.packageType, months: payingPlan.months, amount: payAmount }) },
-        token,
-      );
-      setPaySuccess(data);
+      
+      // 如果不是升级，先创建微信支付订单
+      if (!payingPlan.isUpgrade) {
+        const createData = await apiRequest<{ success: boolean; code_url?: string; order_id?: number; error?: string }>(
+          '/pay/create',
+          { method: 'POST', body: JSON.stringify({ package_type: payingPlan.packageType, months: payingPlan.months, amount: payAmount }) },
+          token,
+        );
+        
+        if (!createData.success) {
+          throw new Error(createData.error || '创建支付订单失败');
+        }
+        
+        // 设置二维码URL，让前端显示
+        if (createData.code_url) {
+          setPayQrCode(createData.code_url);
+        }
+        
+        // 暂时先用旧接口完成购买（等微信支付回调完善后再改�?        const data = await apiRequest<{ expire_date: string; days_left: number; package_type: string }>(
+          endpoint,
+          { method: 'POST', body: JSON.stringify({ plan: payingPlan.name, package_type: payingPlan.packageType, months: payingPlan.months, amount: payAmount }) },
+          token,
+        );
+        setPaySuccess(data);
+      } else {
+        // 升级流程不变
+        const data = await apiRequest<{ expire_date: string; days_left: number; package_type: string }>(
+          endpoint,
+          { method: 'POST', body: JSON.stringify({ plan: payingPlan.name, package_type: payingPlan.packageType, months: payingPlan.months, amount: payAmount }) },
+          token,
+        );
+        setPaySuccess(data);
+      }
+      
       await loadUser(token);
-      setOrderRefreshKey(k => k + 1); // 触发 ProfilePage 重新加载订单
+      setOrderRefreshKey(k => k + 1);
     } catch (err: any) { alert(err.message || '操作失败，请稍后重试'); }
     finally { setPayLoading(false); }
   }
@@ -304,22 +331,22 @@ export default function App() {
   }
 
   const features = [
-    { icon: MessageSquare, title: 'AI智能对话', description: '像聊天一样简单。直接告诉AI你的需求："帮我分析营收"、"帮我排班"、"怎么做活动"，AI秒懂并给出可执行方案。7×24小时随时响应。' },
-    { icon: TrendingUp,    title: '多平台账户监控', description: '美团、饿了么、大众点评数据自动汇总。一个界面看清营收、订单、评价等核心指标，数据可视化一目了然。' },
-    { icon: ClipboardList, title: '每日经营复盘', description: 'AI每天生成10个经营问题，引导完成每日复盘。涵盖营收、成本、客流、评价等，数据自动累计到系统，月度统计更轻松。' },
-    { icon: Palette,       title: 'AI营销助手', description: '不会设计没关系。说"帮我做个促销海报"，AI几秒钟生成。想要短视频？告诉AI主题，自动帮你剪辑。降低营销门槛，提升曝光。' },
-    { icon: Calendar,      title: '智能排班', description: '根据客流和营收，AI智能推荐最优排班方案。一键通知员工，省时省心。' },
-    { icon: Wallet,        title: '财务记账 + 报税', description: '日常收支随手记，营收成本自动同步。月度报表自动生成，报税数据自动整理。每年省下3000-5000元会计费！' },
-    { icon: Calculator,    title: '工资表自动生成', description: '考勤自动统计，加班请假提成自动计算。一键生成工资表，支持导出Excel。几分钟搞定工资核算。' },
-    { icon: PieChart,      title: '经营数据分析', description: '自动汇总每日数据，智能计算KPI指标（营收、成本、利润、评分等）。支持月度深度报告生成。' },
+    { icon: MessageSquare, title: 'AI智能对话', description: '像聊天一样简单。直接告诉AI你的需求："帮我分析营收"�?帮我排班"�?怎么做活�?，AI秒懂并给出可执行方案�?×24小时随时响应�? },
+    { icon: TrendingUp,    title: '多平台账户监�?, description: '美团、饿了么、大众点评数据自动汇总。一个界面看清营收、订单、评价等核心指标，数据可视化一目了然�? },
+    { icon: ClipboardList, title: '每日经营复盘', description: 'AI每天生成10个经营问题，引导完成每日复盘。涵盖营收、成本、客流、评价等，数据自动累计到系统，月度统计更轻松�? },
+    { icon: Palette,       title: 'AI营销助手', description: '不会设计没关系。说"帮我做个促销海报"，AI几秒钟生成。想要短视频？告诉AI主题，自动帮你剪辑。降低营销门槛，提升曝光�? },
+    { icon: Calendar,      title: '智能排班', description: '根据客流和营收，AI智能推荐最优排班方案。一键通知员工，省时省心�? },
+    { icon: Wallet,        title: '财务记账 + 报税', description: '日常收支随手记，营收成本自动同步。月度报表自动生成，报税数据自动整理。每年省�?000-5000元会计费�? },
+    { icon: Calculator,    title: '工资表自动生�?, description: '考勤自动统计，加班请假提成自动计算。一键生成工资表，支持导出Excel。几分钟搞定工资核算�? },
+    { icon: PieChart,      title: '经营数据分析', description: '自动汇总每日数据，智能计算KPI指标（营收、成本、利润、评分等）。支持月度深度报告生成�? },
   ];
   const problems = [
-    { title: '数据分散', description: '多个平台来回切换', oldWay: '手动统计一下午', newWay: 'AI 3秒汇总' },
+    { title: '数据分散', description: '多个平台来回切换', oldWay: '手动统计一下午', newWay: 'AI 3秒汇�? },
     { title: '营销做图', description: '请设计师太贵',     oldWay: '等设计师出图',   newWay: 'AI现场生成' },
-    { title: '员工排班', description: '算来算去算不清',   oldWay: '凭经验猜测',     newWay: '用数据说话' },
-    { title: '记账报税', description: '每个月对账对到头痛', oldWay: '请会计每年3000+', newWay: 'AI自动整理' },
-    { title: '工资核算', description: '做表要做到半夜',   oldWay: '手动计算加班',   newWay: '系统自动生成' },
-    { title: '经营分析', description: '数据太多整理不过来', oldWay: '凭感觉判断',   newWay: 'AI给出建议' },
+    { title: '员工排班', description: '算来算去算不�?,   oldWay: '凭经验猜�?,     newWay: '用数据说�? },
+    { title: '记账报税', description: '每个月对账对到头�?, oldWay: '请会计每�?000+', newWay: 'AI自动整理' },
+    { title: '工资核算', description: '做表要做到半�?,   oldWay: '手动计算加班',   newWay: '系统自动生成' },
+    { title: '经营分析', description: '数据太多整理不过�?, oldWay: '凭感觉判�?,   newWay: 'AI给出建议' },
   ];
 
         return (
@@ -358,7 +385,7 @@ export default function App() {
                   className="glass text-white/80 hover:text-white text-sm px-4 py-2 rounded-lg flex items-center gap-2 transition-all">
                   <User className="w-3.5 h-3.5" />
                   {user.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}
-                  {user.is_activated ? <span className="text-brand-400 text-xs">· {user.package_type === 'VIP3' ? '专业版' : '基础版'}</span> : <span className="text-white/30 text-xs">· 未激活</span>}
+                  {user.is_activated ? <span className="text-brand-400 text-xs">· {user.package_type === 'VIP3' ? '专业�? : '基础�?}</span> : <span className="text-white/30 text-xs">· 未激�?/span>}
                 </button>
                 <button onClick={logout} className="glass text-red-400 hover:text-red-300 text-sm px-3 py-2 rounded-lg transition-all">
                   <LogOut className="w-4 h-4" />
@@ -382,7 +409,7 @@ export default function App() {
             <section className="pt-40 pb-24 px-6">
               <div className="max-w-6xl mx-auto">
                   <div className="text-center mb-16">
-                    {/* 痛点冲击文案 — 大字展示排版，与 Hero 字号一致 */}
+                    {/* 痛点冲击文案 �?大字展示排版，与 Hero 字号一�?*/}
                     <div className="max-w-4xl mx-auto mb-14 space-y-6">
 
                       {/* Eyebrow 标签 */}
@@ -394,12 +421,12 @@ export default function App() {
                         别急着否认，问问你自己
                       </motion.p>
 
-                      {/* 三句问题 — 大字 */}
+                      {/* 三句问题 �?大字 */}
                       <div className="space-y-3">
                         {[
-                          { delay: 0.15, text: <>看着惨淡的营业额，你真的知道<span className="text-brand-400">问题出在哪</span>吗？</> },
-                          { delay: 0.3,  text: <>同行都在做营销、拍视频，你却<span className="text-brand-400">连海报都做不出来</span>？</> },
-                          { delay: 0.45, text: <>月底面对一堆票据，你分得清<span className="text-brand-400">什么是抵扣联</span>吗？</> },
+                          { delay: 0.15, text: <>看着惨淡的营业额，你真的知道<span className="text-brand-400">问题出在�?/span>吗？</> },
+                          { delay: 0.3,  text: <>同行都在做营销、拍视频，你�?span className="text-brand-400">连海报都做不出来</span>�?/> },
+                          { delay: 0.45, text: <>月底面对一堆票据，你分得清<span className="text-brand-400">什么是抵扣�?/span>吗？</> },
                         ].map((item, i) => (
                           <motion.h2
                             key={i}
@@ -412,7 +439,7 @@ export default function App() {
                         ))}
                       </div>
 
-                      {/* 分隔线 */}
+                      {/* 分隔�?*/}
                       <motion.div
                         initial={{ scaleX: 0 }} animate={{ scaleX: 1 }}
                         transition={{ delay: 0.65, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
@@ -426,11 +453,9 @@ export default function App() {
                         className="space-y-2"
                       >
                         <p className="text-xl md:text-2xl font-display font-semibold text-white leading-snug">
-                          醒醒吧！创业不是凭一腔热血，就是一场<span className="text-red-400">赤裸裸的生存战</span>。
-                        </p>
+                          醒醒吧！创业不是凭一腔热血，就是一�?span className="text-red-400">赤裸裸的生存�?/span>�?                        </p>
                         <p className="text-base md:text-lg text-white/50 leading-relaxed">
-                          守不住，前面赚的钱全都是给房东和税务局的「打工钱」。
-                        </p>
+                          守不住，前面赚的钱全都是给房东和税务局的「打工钱」�?                        </p>
                       </motion.div>
 
                       {/* CTA 结语 */}
@@ -439,7 +464,7 @@ export default function App() {
                         transition={{ delay: 0.95, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                         className="text-lg md:text-xl font-semibold text-brand-400 leading-relaxed"
                       >
-                        🛡️ 用星空AI，在你被残酷的市场淘汰之前，先帮你守住最后一道防线！
+                        🛡�?用星空AI，在你被残酷的市场淘汰之前，先帮你守住最后一道防线！
                       </motion.p>
                     </div>
                   {/* 产品演示视频 */}
@@ -453,8 +478,8 @@ export default function App() {
                     <span className="block text-brand-400">智能门店经营助手</span>
                   </h1>
                   <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto mb-10 leading-relaxed">
-                    专为街边门店打造的AI经营助手。餐饮、零售、服务业——不管什么业态，都能帮你轻松管理店铺。<br />
-                    <span className="text-brand-400/80">数据完全实现本地化运作，不用担心数据泄露。</span>
+                    专为街边门店打造的AI经营助手。餐饮、零售、服务业——不管什么业态，都能帮你轻松管理店铺�?br />
+                    <span className="text-brand-400/80">数据完全实现本地化运作，不用担心数据泄露�?/span>
                   </p>
                   <div className="flex flex-wrap justify-center gap-4 mb-12">
                       <Btn primary size="lg" onClick={() => navigate('pricing')}>立即体验 <ArrowRight className="w-4 h-4" /></Btn>
@@ -462,7 +487,7 @@ export default function App() {
                       <Btn size="lg" onClick={() => navigate('features')}>了解功能</Btn>
                   </div>
                 </div>
-                  {/* 轮播图 */}
+                  {/* 轮播�?*/}
                   <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.6 }} className="relative">
                   <div className="absolute inset-0 bg-brand-500/20 blur-[80px] rounded-3xl -z-10" />
                   <ImageCarousel />
@@ -474,8 +499,8 @@ export default function App() {
             <section className="py-20 px-6">
               <div className="max-w-6xl mx-auto">
                 <div className="text-center mb-14">
-                  <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">你是否遇到过这些烦恼？</h2>
-                  <p className="text-white/50">星空AI帮你一键解决</p>
+                  <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">你是否遇到过这些烦恼�?/h2>
+                  <p className="text-white/50">星空AI帮你一键解�?/p>
                 </div>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {problems.map((item, i) => <ProblemCard key={i} {...item} />)}
@@ -507,10 +532,9 @@ export default function App() {
                   <Lightbulb className="w-12 h-12 text-brand-400 mx-auto mb-6" />
                   <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">让AI成为你的经营顾问</h2>
                   <p className="text-white/60 mb-8 max-w-xl mx-auto">
-                    告别繁琐管理，专注店铺经营。像请了一个24小时不休息的店长，帮你整理数据、分析问题、想营销主意。
-                  </p>
+                    告别繁琐管理，专注店铺经营。像请了一�?4小时不休息的店长，帮你整理数据、分析问题、想营销主意�?                  </p>
                     <div className="flex justify-center">
-                      <Btn primary size="lg" onClick={() => navigate('pricing')}>立即开始 <ArrowRight className="w-5 h-5" /></Btn>
+                      <Btn primary size="lg" onClick={() => navigate('pricing')}>立即开�?<ArrowRight className="w-5 h-5" /></Btn>
                     </div>
                 </div>
               </div>
@@ -524,7 +548,7 @@ export default function App() {
               <div className="max-w-6xl mx-auto">
                 <div className="text-center mb-16">
                   <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">核心功能</h1>
-                    <p className="text-white/60 text-lg max-w-2xl mx-auto">星空AI像一个24小时不休息的店长，帮你整理数据、分析问题、想营销主意、算工资。</p>
+                    <p className="text-white/60 text-lg max-w-2xl mx-auto">星空AI像一�?4小时不休息的店长，帮你整理数据、分析问题、想营销主意、算工资�?/p>
                 </div>
                 <div className="space-y-16">
                   {features.map((f, i) => (
@@ -546,9 +570,9 @@ export default function App() {
                       ))}
                     </div>
                 <div className="mt-20 text-center">
-                  <h3 className="text-2xl font-semibold mb-6">适用业态</h3>
+                  <h3 className="text-2xl font-semibold mb-6">适用业�?/h3>
                   <div className="flex flex-wrap justify-center gap-3">
-                      {['餐饮店','便利店','超市','药店','母婴店','美容','美发','洗车','维修','服装店'].map(item => (
+                      {['餐饮�?,'便利�?,'超市','药店','母婴�?,'美容','美发','洗车','维修','服装�?].map(item => (
                         <span key={item} className="px-4 py-2 rounded-full bg-white/5 text-white/70 text-sm">{item}</span>
                     ))}
                     </div>
@@ -633,8 +657,7 @@ export default function App() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 下载页
-// ════════════════════════════════════════════════════════════════════════════
+// 下载�?// ════════════════════════════════════════════════════════════════════════════
 function DownloadPage({ user, navigate }: { user: UserInfo | null; navigate: (p: Page) => void }) {
   // 最新版本信息（上线后在此处更新版本号和文件名）
   const VERSION    = '1.0.0';
@@ -642,32 +665,31 @@ function DownloadPage({ user, navigate }: { user: UserInfo | null; navigate: (p:
   const DOWNLOAD_URL = `/downloads/${EXE_FILE}`;
 
   const sysReqs = [
-    { icon: Monitor,   label: '操作系统', value: 'Windows 10 / 11（64位）' },
-    { icon: Cpu,       label: '处理器',   value: '双核 2GHz 及以上' },
-    { icon: HardDrive, label: '存储空间', value: '安装需 500MB，运行建议 2GB' },
+    { icon: Monitor,   label: '操作系统', value: 'Windows 10 / 11�?4位）' },
+    { icon: Cpu,       label: '处理�?,   value: '双核 2GHz 及以�? },
+    { icon: HardDrive, label: '存储空间', value: '安装需 500MB，运行建�?2GB' },
   ];
 
   const steps = [
-    { num: '01', title: '注册账号', desc: '在本网站注册账号，购买套餐后立即获得软件授权码' },
+    { num: '01', title: '注册账号', desc: '在本网站注册账号，购买套餐后立即获得软件授权�? },
     { num: '02', title: '下载安装', desc: '点击下方按钮下载安装包，双击运行 .exe 文件完成安装' },
-    { num: '03', title: '输入授权码', desc: '打开软件，在"激活"界面粘贴个人中心里的授权码，绑定后即可使用' },
+    { num: '03', title: '输入授权�?, desc: '打开软件，在"激�?界面粘贴个人中心里的授权码，绑定后即可使�? },
   ];
 
         return (
     <section className="pt-32 pb-20 px-6">
       <div className="max-w-4xl mx-auto">
-        {/* 标题区 */}
+        {/* 标题�?*/}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-sm mb-6">
             <Download className="w-4 h-4" />
-            <span>Windows 桌面客户端</span>
+            <span>Windows 桌面客户�?/span>
           </div>
           <h1 className="text-4xl md:text-5xl font-display font-bold mb-4">
             下载 星空AI
                 </h1>
           <p className="text-white/50 text-lg max-w-xl mx-auto">
-            安装桌面版，解锁 AI 门店经营助手的全部能力。功能更强，离线可用，数据更安全。
-          </p>
+            安装桌面版，解锁 AI 门店经营助手的全部能力。功能更强，离线可用，数据更安全�?          </p>
                 </div>
 
         {/* 下载卡片 */}
@@ -682,16 +704,15 @@ function DownloadPage({ user, navigate }: { user: UserInfo | null; navigate: (p:
             <Monitor className="w-12 h-12 text-brand-400" />
                   </div>
 
-          <h2 className="text-2xl font-bold mb-1">星空AI 桌面版</h2>
-          <p className="text-white/40 text-sm mb-2">版本 {VERSION} · Windows 64位</p>
+          <h2 className="text-2xl font-bold mb-1">星空AI 桌面�?/h2>
+          <p className="text-white/40 text-sm mb-2">版本 {VERSION} · Windows 64�?/p>
           <p className="text-white/25 text-xs mb-8">更新日期：{new Date().toLocaleDateString('zh-CN')}</p>
 
-          {/* 主下载按钮 */}
+          {/* 主下载按�?*/}
           <a href={DOWNLOAD_URL} download={EXE_FILE}
             className="inline-flex items-center gap-3 bg-brand-500 hover:bg-brand-400 text-white font-semibold text-lg px-10 py-4 rounded-xl transition-all duration-300 shadow-lg shadow-brand-500/25 hover:shadow-brand-400/35">
             <Download className="w-5 h-5" />
-            立即下载（Windows）
-          </a>
+            立即下载（Windows�?          </a>
 
           <p className="mt-4 text-white/25 text-xs">
             文件名：{EXE_FILE}
@@ -701,14 +722,13 @@ function DownloadPage({ user, navigate }: { user: UserInfo | null; navigate: (p:
           <div className="mt-8 flex items-start gap-3 bg-yellow-500/8 border border-yellow-500/20 rounded-xl p-4 text-left max-w-lg mx-auto">
             <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-yellow-400/80">
-              首次运行时 Windows 可能弹出安全提示，点击"<strong>仍要运行</strong>"即可。软件已经过完整测试，安全无毒。
-                    </div>
+              首次运行�?Windows 可能弹出安全提示，点�?<strong>仍要运行</strong>"即可。软件已经过完整测试，安全无毒�?                    </div>
                   </div>
         </motion.div>
 
         {/* 安装步骤 */}
         <div className="mb-10">
-          <h2 className="text-2xl font-display font-bold text-center mb-8">三步开始使用</h2>
+          <h2 className="text-2xl font-display font-bold text-center mb-8">三步开始使�?/h2>
           <div className="grid md:grid-cols-3 gap-6">
             {steps.map((s, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
@@ -721,20 +741,17 @@ function DownloadPage({ user, navigate }: { user: UserInfo | null; navigate: (p:
                 {i === 0 && !user && (
                   <button onClick={() => navigate('register')}
                     className="mt-4 text-brand-400 hover:text-brand-300 text-xs font-medium underline underline-offset-2 transition-colors">
-                    立即注册账号 →
-                        </button>
+                    立即注册账号 �?                        </button>
                 )}
                 {i === 0 && user && !user.is_activated && (
                   <button onClick={() => navigate('pricing')}
                     className="mt-4 text-brand-400 hover:text-brand-300 text-xs font-medium underline underline-offset-2 transition-colors">
-                    购买套餐获取授权码 →
-                      </button>
+                    购买套餐获取授权�?�?                      </button>
                 )}
                 {i === 0 && user && user.is_activated && (
                   <button onClick={() => navigate('profile')}
                     className="mt-4 text-green-400 hover:text-green-300 text-xs font-medium underline underline-offset-2 transition-colors">
-                    ✓ 已激活，查看授权码 →
-                      </button>
+                    �?已激活，查看授权�?�?                      </button>
                 )}
               </motion.div>
             ))}
@@ -759,14 +776,13 @@ function DownloadPage({ user, navigate }: { user: UserInfo | null; navigate: (p:
                       </div>
                       </div>
 
-        {/* 未购买用户引导 */}
+        {/* 未购买用户引�?*/}
         {(!user || !user.is_activated) && (
           <div className="glass rounded-2xl p-8 text-center">
             <Shield className="w-10 h-10 text-brand-400 mx-auto mb-4" />
             <h3 className="font-semibold text-lg mb-2">软件需要授权码才能使用</h3>
             <p className="text-white/40 text-sm mb-6">
-              软件可以免费下载，但需要购买套餐并激活授权码后，才能解锁对应功能。
-            </p>
+              软件可以免费下载，但需要购买套餐并激活授权码后，才能解锁对应功能�?            </p>
             <div className="flex flex-wrap justify-center gap-3">
               <Btn primary onClick={() => navigate('pricing')}>查看套餐价格</Btn>
               {!user && <Btn onClick={() => navigate('register')}>免费注册账号</Btn>}
@@ -779,8 +795,7 @@ function DownloadPage({ user, navigate }: { user: UserInfo | null; navigate: (p:
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 价格页
-// ════════════════════════════════════════════════════════════════════════════
+// 价格�?// ════════════════════════════════════════════════════════════════════════════
 function PricingPage({ user, openPayModal, navigate }: { user: UserInfo | null; openPayModal: (p: PayingPlan) => void; navigate: (p: Page) => void }) {
   const [selectedPeriods, setSelectedPeriods] = useState<Record<string, number>>({ VIP1: 0, VIP3: 0 });
 
@@ -788,8 +803,8 @@ function PricingPage({ user, openPayModal, navigate }: { user: UserInfo | null; 
     <section className="pt-32 pb-20 px-6">
       <div className="max-w-5xl mx-auto">
         <div className="text-center mb-14">
-          <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">套餐与费用</h1>
-          <p className="text-white/60 text-lg">一顿饭的钱，帮你省下运营、会计和数据分析的人力成本</p>
+          <h1 className="text-4xl md:text-5xl font-display font-bold mb-6">套餐与费�?/h1>
+          <p className="text-white/60 text-lg">一顿饭的钱，帮你省下运营、会计和数据分析的人力成�?/p>
                         </div>
 
         <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
@@ -802,8 +817,7 @@ function PricingPage({ user, openPayModal, navigate }: { user: UserInfo | null; 
               <div key={plan.id} className={`glass rounded-2xl p-8 relative flex flex-col ${plan.highlight ? 'ring-2 ring-yellow-400/30' : ''}`}>
                 {plan.highlight && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-black px-4 py-1 rounded-full text-xs font-semibold">
-                    最受欢迎
-                                </div>
+                    最受欢�?                                </div>
                 )}
                 <h3 className="text-2xl font-display font-bold mb-1">{plan.name}</h3>
                 <p className="text-white/40 text-sm mb-5">{plan.desc}</p>
@@ -818,7 +832,7 @@ function PricingPage({ user, openPayModal, navigate }: { user: UserInfo | null; 
                           : 'border-white/10 text-white/40 hover:border-white/20'
                       }`}>
                       {pp.period}
-                      {pp.months >= 12 && <span className="block text-[10px] text-green-400">省最多</span>}
+                      {pp.months >= 12 && <span className="block text-[10px] text-green-400">省最�?/span>}
                                   </button>
                   ))}
                           </div>
@@ -826,8 +840,8 @@ function PricingPage({ user, openPayModal, navigate }: { user: UserInfo | null; 
                 {/* 价格 */}
                 <div className="mb-6">
                   <span className="text-4xl font-bold">¥{sel.price}</span>
-                  <span className="text-white/40 text-sm ml-2">{sel.months === 1 ? '/月' : `/${sel.months}个月`}</span>
-                  {sel.months > 1 && <div className="text-xs text-white/30 mt-1">约 ¥{Math.round(sel.price / sel.months)}/月</div>}
+                  <span className="text-white/40 text-sm ml-2">{sel.months === 1 ? '/�? : `/${sel.months}个月`}</span>
+                  {sel.months > 1 && <div className="text-xs text-white/30 mt-1">�?¥{Math.round(sel.price / sel.months)}/�?/div>}
                 </div>
 
                 {/* 功能列表 */}
@@ -849,7 +863,7 @@ function PricingPage({ user, openPayModal, navigate }: { user: UserInfo | null; 
                 {isCurrent ? (
                   <>
                     <div className={`text-center py-3 rounded-xl text-sm font-semibold mb-2 ${plan.highlight ? 'bg-yellow-500/15 text-yellow-400' : 'bg-brand-500/15 text-brand-400'}`}>
-                      ✓ 当前套餐（剩余 {user?.days_left ?? 0} 天）
+                      �?当前套餐（剩�?{user?.days_left ?? 0} 天）
                     </div>
                     <Btn full onClick={() => openPayModal({ name: plan.name, packageType: plan.id, period: sel.period, price: sel.price, months: sel.months })}
                       primary={plan.highlight}>
@@ -859,7 +873,7 @@ function PricingPage({ user, openPayModal, navigate }: { user: UserInfo | null; 
                 ) : (
                   <Btn full primary={plan.highlight}
                     onClick={() => openPayModal({ name: plan.name, packageType: plan.id, period: sel.period, price: sel.price, months: sel.months })}>
-                    {user ? '立即购买' : '登录后购买'}
+                    {user ? '立即购买' : '登录后购�?}
                   </Btn>
                 )}
                       </div>
@@ -895,9 +909,9 @@ function ContactPage({ user, token }: { user: UserInfo | null; token: string }) 
   if (success) return (
     <div className="max-w-md mx-auto pt-40 text-center px-6">
       <div className="glass rounded-3xl p-12">
-        <div className="text-6xl mb-4">✅</div>
-        <h2 className="text-2xl font-bold mb-3">提交成功！</h2>
-        <p className="text-white/50">我们会在 24 小时内与您联系</p>
+        <div className="text-6xl mb-4">�?/div>
+        <h2 className="text-2xl font-bold mb-3">提交成功�?/h2>
+        <p className="text-white/50">我们会在 24 小时内与您联�?/p>
                       </div>
                       </div>
                         );
@@ -910,11 +924,11 @@ function ContactPage({ user, token }: { user: UserInfo | null; token: string }) 
         <form onSubmit={handleSubmit} className="glass rounded-2xl p-8 space-y-4">
           <GlassInput label="公司/姓名 *" value={form.customer_name} onChange={v => setForm(p => ({ ...p, customer_name: v }))} />
           <GlassInput label="联系方式 *" value={form.contact} onChange={v => setForm(p => ({ ...p, contact: v }))} />
-          <GlassInput label="需求描述" value={form.description} onChange={v => setForm(p => ({ ...p, description: v }))} textarea />
-          <GlassInput label="销售码（如有）" value={form.sales_code} onChange={v => setForm(p => ({ ...p, sales_code: v }))} placeholder="如 A001，没有可不填" />
+          <GlassInput label="需求描�? value={form.description} onChange={v => setForm(p => ({ ...p, description: v }))} textarea />
+          <GlassInput label="销售码（如有）" value={form.sales_code} onChange={v => setForm(p => ({ ...p, sales_code: v }))} placeholder="�?A001，没有可不填" />
           {err && <ErrBox msg={err} />}
           <Btn type="submit" primary full disabled={loading}>
-            {loading ? '提交中...' : <><span>提交需求</span><Rocket className="w-4 h-4" /></>}
+            {loading ? '提交�?..' : <><span>提交需�?/span><Rocket className="w-4 h-4" /></>}
           </Btn>
         </form>
               </div>
@@ -923,8 +937,7 @@ function ContactPage({ user, token }: { user: UserInfo | null; token: string }) 
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 登录页
-// ════════════════════════════════════════════════════════════════════════════
+// 登录�?// ════════════════════════════════════════════════════════════════════════════
 function LoginPage({ token, setToken, setUser, navigate }: any) {
   const [phone, setPhone] = useState('');
   const [pw, setPw]       = useState('');
@@ -948,13 +961,12 @@ function LoginPage({ token, setToken, setUser, navigate }: any) {
         <h1 className="text-4xl font-display font-bold mb-2 text-center">登录</h1>
         <p className="text-white/40 text-center mb-10">欢迎回来</p>
         <form onSubmit={handleLogin} className="glass rounded-2xl p-8 space-y-4">
-          <GlassInput label="手机号" value={phone} onChange={setPhone} type="tel" />
+          <GlassInput label="手机�? value={phone} onChange={setPhone} type="tel" />
           <GlassInput label="密码" value={pw} onChange={setPw} type="password" />
           {err && <ErrBox msg={err} />}
-          <Btn type="submit" primary full disabled={loading}>{loading ? '登录中...' : '登录'}</Btn>
+          <Btn type="submit" primary full disabled={loading}>{loading ? '登录�?..' : '登录'}</Btn>
           <button type="button" onClick={() => navigate('register')} className="w-full text-center text-sm text-brand-400 hover:text-brand-300 transition-colors pt-1">
-            没有账号？立即注册
-          </button>
+            没有账号？立即注�?          </button>
         </form>
                 </div>
     </section>
@@ -962,8 +974,7 @@ function LoginPage({ token, setToken, setUser, navigate }: any) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 注册页
-// ════════════════════════════════════════════════════════════════════════════
+// 注册�?// ════════════════════════════════════════════════════════════════════════════
 function RegisterPage({ setToken, navigate }: any) {
   const [phone, setPhone]       = useState('');
   const [smsCode, setSmsCode]   = useState('');
@@ -987,7 +998,7 @@ function RegisterPage({ setToken, navigate }: any) {
     try {
       const d = await apiRequest<{ code?: string; message?: string }>('/sms/send', { method: 'POST', body: JSON.stringify({ phone }) });
       setCountdown(60);
-      setSmsTip(d.code ? `开发模式验证码：${d.code}` : (d.message || '验证码已发送'));
+      setSmsTip(d.code ? `开发模式验证码�?{d.code}` : (d.message || '验证码已发�?));
     } catch (e: any) { setErr(e.message); }
     setSmsLoading(false);
   }
@@ -1008,13 +1019,13 @@ function RegisterPage({ setToken, navigate }: any) {
     <section className="pt-32 pb-20 px-6">
       <div className="max-w-md mx-auto">
         <h1 className="text-4xl font-display font-bold mb-2 text-center">注册账号</h1>
-        <p className="text-white/40 text-center mb-10">注册后购买套餐即可立即激活</p>
+        <p className="text-white/40 text-center mb-10">注册后购买套餐即可立即激�?/p>
         <form onSubmit={handleRegister} className="glass rounded-2xl p-8 space-y-4">
-          <GlassInput label="手机号 *" value={phone} onChange={setPhone} type="tel" placeholder="请输入11位手机号" />
+          <GlassInput label="手机�?*" value={phone} onChange={setPhone} type="tel" placeholder="请输�?1位手机号" />
 
-          {/* 验证码 */}
+          {/* 验证�?*/}
                       <div>
-            <label className="block text-white/50 text-xs mb-1.5">短信验证码 *</label>
+            <label className="block text-white/50 text-xs mb-1.5">短信验证�?*</label>
                         <div className="flex gap-2">
               <input value={smsCode} onChange={e => setSmsCode(e.target.value)} placeholder="6位验证码" maxLength={6}
                 className="flex-1 rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500 transition-colors text-white" />
@@ -1022,21 +1033,21 @@ function RegisterPage({ setToken, navigate }: any) {
                 className={`whitespace-nowrap px-4 py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                   countdown > 0 ? 'glass text-white/40' : 'bg-brand-500 text-white hover:bg-brand-400'
                 }`}>
-                {smsLoading ? '发送中' : countdown > 0 ? `${countdown}s` : '获取验证码'}
+                {smsLoading ? '发送中' : countdown > 0 ? `${countdown}s` : '获取验证�?}
                           </button>
                         </div>
             {smsTip && <p className="mt-1.5 text-xs text-green-400">{smsTip}</p>}
                   </div>
 
-          <GlassInput label="密码 *（至少6位）" value={pw} onChange={setPw} type="password" placeholder="设置登录密码" />
+          <GlassInput label="密码 *（至�?位）" value={pw} onChange={setPw} type="password" placeholder="设置登录密码" />
 
                       <div>
-            <GlassInput label="销售码（选填）" value={salesCode} onChange={setSalesCode} placeholder="如 A001，没有可不填" />
-            <p className="mt-1 text-xs text-white/25">由销售人员提供，绑定后不可更改</p>
+            <GlassInput label="销售码（选填�? value={salesCode} onChange={setSalesCode} placeholder="�?A001，没有可不填" />
+            <p className="mt-1 text-xs text-white/25">由销售人员提供，绑定后不可更�?/p>
                   </div>
 
           {err && <ErrBox msg={err} />}
-          <Btn type="submit" primary full disabled={loading}>{loading ? '注册中...' : '立即注册'}</Btn>
+          <Btn type="submit" primary full disabled={loading}>{loading ? '注册�?..' : '立即注册'}</Btn>
           <button type="button" onClick={() => navigate('login')} className="w-full text-center text-sm text-brand-400 hover:text-brand-300 transition-colors pt-1">
             已有账号？去登录
           </button>
@@ -1056,8 +1067,7 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate, orderRefre
   useEffect(() => {
     if (!token) { navigate('login'); return; }
     apiRequest<any[]>('/user/orders', {}, token).then(setOrders).catch(() => {});
-  }, [token, orderRefreshKey]); // orderRefreshKey 变化时重新加载订单
-
+  }, [token, orderRefreshKey]); // orderRefreshKey 变化时重新加载订�?
   function copyLicense() {
     if (!user?.license_key) return;
     navigator.clipboard.writeText(user.license_key).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
@@ -1068,16 +1078,16 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate, orderRefre
   function openUpgradeModal(months: number, price: number, period: string) {
     const daysLeft = user?.days_left ?? 0;
     const credit = calcCredit(daysLeft);
-    openPayModal({ name: '升级专业版', packageType: 'VIP3', period, price, months, isUpgrade: true, credit, finalPrice: Math.max(0, price - credit) });
+    openPayModal({ name: '升级专业�?, packageType: 'VIP3', period, price, months, isUpgrade: true, credit, finalPrice: Math.max(0, price - credit) });
   }
 
   if (!user) return (
     <div className="flex items-center justify-center pt-40">
-      <div className="glass rounded-2xl px-12 py-8 text-white/40">加载中...</div>
+      <div className="glass rounded-2xl px-12 py-8 text-white/40">加载�?..</div>
                 </div>
         );
 
-  const pkgLabel = user.package_type === 'VIP3' ? '专业版' : user.package_type === 'VIP1' ? '基础版' : '未激活';
+  const pkgLabel = user.package_type === 'VIP3' ? '专业�? : user.package_type === 'VIP1' ? '基础�? : '未激�?;
   const isVip3   = user.is_activated && user.package_type === 'VIP3';
   const isVip1   = user.is_activated && user.package_type === 'VIP1';
 
@@ -1093,10 +1103,10 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate, orderRefre
               <div className="text-lg font-semibold mb-1">
                 📱 {user.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')}
                     </div>
-              {user.sales_name && <div className="text-xs text-white/40">归属销售：{user.sales_name}（{user.sales_code}）</div>}
+              {user.sales_name && <div className="text-xs text-white/40">归属销售：{user.sales_name}（{user.sales_code}�?/div>}
                     </div>
             <span className={`px-4 py-1.5 rounded-full text-sm font-semibold ${user.is_activated ? 'bg-green-500/15 text-green-400' : 'bg-white/5 text-white/40'}`}>
-              {user.is_activated ? `✓ ${pkgLabel}` : '⊘ 未激活'}
+              {user.is_activated ? `�?${pkgLabel}` : '�?未激�?}
             </span>
                   </div>
 
@@ -1104,7 +1114,7 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate, orderRefre
           {user.is_activated && user.expire_date && (
             <div className="grid grid-cols-3 gap-4 mb-6">
               {[
-                { label: '套餐状态', value: pkgLabel, color: 'text-brand-400' },
+                { label: '套餐状�?, value: pkgLabel, color: 'text-brand-400' },
                 { label: '到期时间', value: new Date(user.expire_date).toLocaleDateString('zh-CN'), color: 'text-yellow-400' },
                 { label: '剩余天数', value: `${user.days_left ?? 0} 天`, color: (user.days_left ?? 0) < 10 ? 'text-red-400' : 'text-green-400' },
               ].map(s => (
@@ -1116,12 +1126,12 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate, orderRefre
               </div>
           )}
 
-          {/* 软件授权码 */}
+          {/* 软件授权�?*/}
           {user.license_key && (
             <div className="bg-white/[0.02] rounded-xl border border-white/10 p-5 mb-4">
               <div className="flex items-center gap-2 text-xs text-white/40 mb-3">
-                🔑 <span className="font-medium text-white/60">桌面软件授权码</span>
-                <span>· 与手机号唯一绑定，请勿泄露</span>
+                🔑 <span className="font-medium text-white/60">桌面软件授权�?/span>
+                <span>· 与手机号唯一绑定，请勿泄�?/span>
                     </div>
               <div className="flex items-center gap-3">
                 <code className="flex-1 text-lg font-bold tracking-[0.2em] text-brand-300 bg-white/5 px-4 py-3 rounded-lg border border-white/10 select-all">
@@ -1129,17 +1139,16 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate, orderRefre
                 </code>
                 <button onClick={copyLicense}
                   className={`flex items-center gap-1.5 px-4 py-3 rounded-lg text-sm font-medium transition-all ${copied ? 'bg-green-500/80 text-white' : 'bg-brand-500 text-white hover:bg-brand-400'}`}>
-                  {copied ? <><Check className="w-4 h-4" />已复制</> : <><Copy className="w-4 h-4" />复制</>}
+                  {copied ? <><Check className="w-4 h-4" />已复�?/> : <><Copy className="w-4 h-4" />复制</>}
                       </button>
                   </div>
-              <p className="mt-2 text-xs text-white/25">在桌面软件"激活"界面粘贴此码即可绑定 · 续费后授权码不变，到期时间自动更新</p>
+              <p className="mt-2 text-xs text-white/25">在桌面软�?激�?界面粘贴此码即可绑定 · 续费后授权码不变，到期时间自动更�?/p>
                 </div>
           )}
 
           {!user.license_key && !user.is_activated && (
             <div className="bg-yellow-500/8 rounded-xl border border-yellow-500/20 p-4 text-sm text-yellow-400/80">
-              💡 购买套餐后将自动生成您的专属软件授权码
-              </div>
+              💡 购买套餐后将自动生成您的专属软件授权�?              </div>
           )}
 
           {/* VIP1 升级按钮 */}
@@ -1147,13 +1156,13 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate, orderRefre
             <div className="mt-4 p-5 rounded-xl bg-gradient-to-r from-yellow-500/8 to-purple-500/8 border border-yellow-500/25">
               <div className="flex justify-between items-center mb-4">
                 <div>
-                  <div className="font-bold text-yellow-400">⚡ 升级到专业版</div>
+                  <div className="font-bold text-yellow-400">�?升级到专业版</div>
                   <div className="text-xs text-white/40 mt-1">解锁 AI 营销 · 经营分析 · 财务报税</div>
                 </div>
                 {(user.days_left ?? 0) > 0 && (
                   <div className="text-right text-xs">
-                    <div className="text-green-400">可抵扣 ¥{calcCredit(user.days_left ?? 0)}</div>
-                    <div className="text-white/30 mt-0.5">剩余 {user.days_left} 天 × ¥{(99/30).toFixed(1)}/天</div>
+                    <div className="text-green-400">可抵�?¥{calcCredit(user.days_left ?? 0)}</div>
+                    <div className="text-white/30 mt-0.5">剩余 {user.days_left} �?× ¥{(99/30).toFixed(1)}/�?/div>
                   </div>
                 )}
               </div>
@@ -1179,7 +1188,7 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate, orderRefre
             <div className="mt-4 bg-white/[0.02] rounded-xl border border-white/10 p-5">
               <div className="flex justify-between items-center mb-4">
                 <span className="text-sm font-medium text-white/60">本月 AI 额度</span>
-                <span className="text-xs text-white/30">购买加速包可立即追加次数</span>
+                <span className="text-xs text-white/30">购买加速包可立即追加次�?/span>
                   </div>
               <div className="grid grid-cols-3 gap-3">
                 <QuotaBar label="AI 生图"  remaining={user.ai_image_quota ?? 0} base={20} color="bg-brand-500" />
@@ -1214,7 +1223,7 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate, orderRefre
               <div className="rounded-xl border border-pink-500/30 p-5">
                 <div className="font-semibold text-pink-400 mb-1">🚀 AI 加速包</div>
                 <div className="text-xs text-white/40 mb-4">+10图片 / +10视频 / +10编辑（立即生效）</div>
-                <button onClick={() => openPayModal({ name: 'AI 加速包', packageType: 'ADDON', period: '一次性', price: ADDON.price, months: 0 })}
+                <button onClick={() => openPayModal({ name: 'AI 加速包', packageType: 'ADDON', period: '一次�?, price: ADDON.price, months: 0 })}
                   className="w-full py-3 rounded-lg bg-gradient-to-r from-pink-500 to-orange-500 text-white font-semibold text-sm hover:opacity-90 transition-opacity">
                   ¥88 立即购买
                     </button>
@@ -1239,7 +1248,7 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate, orderRefre
                   <div className="flex items-center gap-3">
                     {o.amount && <span className="text-yellow-400 font-semibold text-sm">¥{o.amount}</span>}
                     <span className={`text-xs px-3 py-1 rounded-full ${o.status === 'paid' ? 'bg-green-500/15 text-green-400' : 'bg-yellow-500/15 text-yellow-400'}`}>
-                      {o.status === 'paid' ? '已完成' : '待处理'}
+                      {o.status === 'paid' ? '已完�? : '待处�?}
                               </span>
                   </div>
                 </div>
@@ -1255,9 +1264,10 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate, orderRefre
 // ════════════════════════════════════════════════════════════════════════════
 // 付款弹窗
 // ════════════════════════════════════════════════════════════════════════════
-function PayModal({ plan, loading, success, onPay, onClose }: {
+function PayModal({ plan, loading, success, qrCode, onPay, onClose }: {
   plan: PayingPlan; loading: boolean;
   success: { expire_date: string; days_left: number; package_type?: string } | null;
+  qrCode?: string | null;
   onPay: () => void; onClose: () => void;
 }) {
   const payAmount = plan.isUpgrade ? (plan.finalPrice ?? plan.price) : plan.price;
@@ -1269,29 +1279,29 @@ function PayModal({ plan, loading, success, onPay, onClose }: {
         {success ? (
           <div className="text-center">
             <div className="text-6xl mb-4">{plan.isUpgrade ? '🚀' : '🎉'}</div>
-            <h3 className="text-2xl font-bold text-green-400 mb-2">{plan.isUpgrade ? '升级成功！' : '激活成功！'}</h3>
+            <h3 className="text-2xl font-bold text-green-400 mb-2">{plan.isUpgrade ? '升级成功�? : '激活成功！'}</h3>
             {plan.isUpgrade && (
-              <div className="mb-4 px-4 py-3 bg-yellow-500/10 rounded-xl text-sm text-yellow-400">✨ 已解锁：AI 营销工坊 · 经营分析 · 财务报税</div>
+              <div className="mb-4 px-4 py-3 bg-yellow-500/10 rounded-xl text-sm text-yellow-400">�?已解锁：AI 营销工坊 · 经营分析 · 财务报税</div>
             )}
-            <p className="text-white/50 text-sm mb-1">套餐：{success.package_type === 'VIP3' ? '专业版' : plan.name}</p>
+            <p className="text-white/50 text-sm mb-1">套餐：{success.package_type === 'VIP3' ? '专业�? : plan.name}</p>
             <p className="text-white/50 text-sm mb-2">到期时间：{new Date(success.expire_date).toLocaleDateString('zh-CN')}</p>
-            <p className="text-green-400 text-xl font-bold mb-6">剩余 {success.days_left} 天</p>
+            <p className="text-green-400 text-xl font-bold mb-6">剩余 {success.days_left} �?/p>
             <p className="text-white/25 text-xs mb-5">重启桌面软件后，新功能将自动解锁</p>
             <Btn primary full onClick={onClose}>返回个人中心</Btn>
                         </div>
         ) : (
           <>
-            <h3 className="text-xl font-bold mb-1">{plan.isUpgrade ? '⚡ 升级专业版' : '确认购买'}</h3>
-            <p className="text-white/40 text-sm mb-5">{plan.isUpgrade ? '付款成功后立即升级，桌面软件重启后自动解锁新功能' : '扫码完成付款后，账户将立即激活'}</p>
+            <h3 className="text-xl font-bold mb-1">{plan.isUpgrade ? '�?升级专业�? : '确认购买'}</h3>
+            <p className="text-white/40 text-sm mb-5">{plan.isUpgrade ? '付款成功后立即升级，桌面软件重启后自动解锁新功能' : '扫码完成付款后，账户将立即激�?}</p>
 
             <div className="bg-white/[0.03] rounded-xl p-4 mb-5 space-y-2.5">
-              <Row label="套餐"  value={plan.isUpgrade ? '专业版' : plan.name} />
-              <Row label="时长"  value={`${plan.period}${plan.months > 0 ? `（${plan.months}个月）` : ''}`} />
+              <Row label="套餐"  value={plan.isUpgrade ? '专业�? : plan.name} />
+              <Row label="时长"  value={`${plan.period}${plan.months > 0 ? `�?{plan.months}个月）` : ''}`} />
               {plan.isUpgrade && plan.credit !== undefined && plan.credit > 0 && (
                 <>
                   <Row label="原价" value={`¥${plan.price}`} strike />
                   <div className="flex justify-between px-3 py-2 bg-green-500/8 rounded-lg">
-                    <span className="text-green-400 text-sm">基础版剩余天数抵扣</span>
+                    <span className="text-green-400 text-sm">基础版剩余天数抵�?/span>
                     <span className="text-green-400 font-semibold">-¥{plan.credit}</span>
                         </div>
                 </>
@@ -1302,15 +1312,22 @@ function PayModal({ plan, loading, success, onPay, onClose }: {
                         </div>
                       </div>
 
-            {/* 二维码占位 */}
-            <div className="bg-white rounded-xl w-40 h-40 mx-auto mb-4 flex flex-col items-center justify-center">
-              <div className="text-4xl">📱</div>
-              <div className="text-gray-700 text-xs mt-2 text-center">微信/支付宝<br />扫码付款</div>
-                </div>
-            <p className="text-center text-white/30 text-xs mb-4">付款完成后点击下方按钮立即生效</p>
+            {/* 二维�?*/}
+            {payQrCode ? (
+              <div className="mb-4">
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(payQrCode)}`} alt="支付二维�? className="w-48 h-48 mx-auto rounded-xl" />
+                <p className="text-center text-white/30 text-xs mt-2">微信扫码付款</p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-xl w-40 h-40 mx-auto mb-4 flex flex-col items-center justify-center">
+                <div className="text-4xl">📱</div>
+                <div className="text-gray-700 text-xs mt-2 text-center">微信/支付�?br />扫码付款</div>
+              </div>
+            )}
+            <p className="text-center text-white/30 text-xs mb-4">付款完成后点击下方按钮立即生�?/p>
 
             <Btn primary full disabled={loading} onClick={onPay}>
-              {loading ? (plan.isUpgrade ? '升级中...' : '激活中...') : `✓ 我已完成付款 · 立即${plan.isUpgrade ? '升级' : '激活'}`}
+              {loading ? (plan.isUpgrade ? '升级�?..' : '激活中...') : `�?我已完成付款 · 立即${plan.isUpgrade ? '升级' : '激�?}`}
             </Btn>
             <button onClick={onClose} className="w-full mt-3 text-white/30 hover:text-white/60 text-sm py-2 transition-colors">取消</button>
           </>
@@ -1328,8 +1345,7 @@ const Row = ({ label, value, strike = false }: { label: string; value: string; s
 );
 
 // ════════════════════════════════════════════════════════════════════════════
-// 管理员后台
-// ════════════════════════════════════════════════════════════════════════════
+// 管理员后�?// ════════════════════════════════════════════════════════════════════════════
 function AdminPage() {
   const [adminToken, setAdminToken] = useState(localStorage.getItem('adminToken') || '');
   const [smsCode, setSmsCode]       = useState('');
@@ -1361,8 +1377,7 @@ function AdminPage() {
     try {
       await apiRequest('/admin/send-code', { method: 'POST' });
       setCodeSent(true);
-      setTimeout(() => setCodeSent(false), 60000); // 60秒后允许重新发送
-    } catch (e: any) { setLoginErr(e.message); }
+      setTimeout(() => setCodeSent(false), 60000); // 60秒后允许重新发�?    } catch (e: any) { setLoginErr(e.message); }
     setSendingCode(false);
   }
 
@@ -1387,12 +1402,12 @@ function AdminPage() {
   if (!adminToken) return (
     <section className="pt-32 pb-20 px-6">
       <div className="max-w-sm mx-auto">
-        <h1 className="text-3xl font-display font-bold mb-8 text-center">管理员登录</h1>
+        <h1 className="text-3xl font-display font-bold mb-8 text-center">管理员登�?/h1>
         <div className="glass rounded-2xl p-8 space-y-4">
-          <p className="text-sm text-white/40 text-center">验证码将发送到管理员手机</p>
+          <p className="text-sm text-white/40 text-center">验证码将发送到管理员手�?/p>
           <div className="flex gap-2 items-end">
             <div className="flex-1">
-              <GlassInput label="短信验证码" value={smsCode} onChange={v => { setSmsCode(v); setLoginErr(''); }} />
+              <GlassInput label="短信验证�? value={smsCode} onChange={v => { setSmsCode(v); setLoginErr(''); }} />
             </div>
             <button
               type="button"
@@ -1408,12 +1423,12 @@ function AdminPage() {
                 whiteSpace: 'nowrap',
               }}
             >
-              {sendingCode ? '发送中...' : codeSent ? '已发送' : '获取验证码'}
+              {sendingCode ? '发送中...' : codeSent ? '已发�? : '获取验证�?}
             </button>
           </div>
           {loginErr && <ErrBox msg={loginErr} />}
           <Btn primary full onClick={handleLogin} disabled={loginLoading}>
-            {loginLoading ? '验证中...' : '登录'}
+            {loginLoading ? '验证�?..' : '登录'}
           </Btn>
         </div>
       </div>
@@ -1429,19 +1444,19 @@ function AdminPage() {
               try { await fetch('/api/admin/logout', { method: 'POST', headers: { 'X-Admin-Token': adminToken } }); } catch (_) {}
               localStorage.removeItem('adminToken'); setAdminToken('');
             }}
-            className="glass text-white/50 hover:text-white text-sm px-4 py-2 rounded-lg transition-all">退出</button>
+            className="glass text-white/50 hover:text-white text-sm px-4 py-2 rounded-lg transition-all">退�?/button>
                 </div>
 
         <div className="flex gap-2 mb-6 pb-4 border-b border-white/8">
           {(['orders','users','sales','content'] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2 rounded-lg text-sm transition-all ${tab === t ? 'bg-brand-500 text-white' : 'glass text-white/50 hover:text-white'}`}>
-              {{ orders: '📦 订单', users: '👥 用户', sales: '🏷️ 销售', content: '📝 内容' }[t]}
+              {{ orders: '📦 订单', users: '👥 用户', sales: '🏷�?销�?, content: '📝 内容' }[t]}
             </button>
                   ))}
                 </div>
 
-        {tab === 'orders' && <AdminTable headers={['#','客户','联系','套餐','金额','状态','销售','到期','时间']}>
+        {tab === 'orders' && <AdminTable headers={['#','客户','联系','套餐','金额','状�?,'销�?,'到期','时间']}>
           {orders.map(o => <tr key={o.id} className="border-b border-white/5">
             {[o.id, o.customer_name, o.contact, o.plan, o.amount ? `¥${o.amount}` : '-', , o.sales_code||'-',
               o.user_expire_date ? new Date(o.user_expire_date).toLocaleDateString('zh-CN') : '-',
@@ -1452,13 +1467,13 @@ function AdminPage() {
           </tr>)}
         </AdminTable>}
 
-        {tab === 'users' && <AdminTable headers={['手机','套餐','到期','剩余天数','归属销售','注册时间']}>
+        {tab === 'users' && <AdminTable headers={['手机','套餐','到期','剩余天数','归属销�?,'注册时间']}>
           {users.map(u => <tr key={u.id} className="border-b border-white/5">
             <td className="px-4 py-3 text-white/60 text-sm">{u.phone}</td>
-            <td className="px-4 py-3 text-white/60 text-sm">{u.is_activated ? (u.package_type === 'VIP3' ? '专业版' : '基础版') : '未激活'}</td>
+            <td className="px-4 py-3 text-white/60 text-sm">{u.is_activated ? (u.package_type === 'VIP3' ? '专业�? : '基础�?) : '未激�?}</td>
             <td className="px-4 py-3 text-white/60 text-sm">{u.expire_date ? new Date(u.expire_date).toLocaleDateString('zh-CN') : '-'}</td>
             <td className={`px-4 py-3 text-sm font-semibold ${u.days_left < 10 ? 'text-red-400' : 'text-green-400'}`}>{u.expire_date ? `${u.days_left}天` : '-'}</td>
-            <td className="px-4 py-3 text-white/60 text-sm">{u.sales_code ? `${u.sales_name}（${u.sales_code}）` : '直销'}</td>
+            <td className="px-4 py-3 text-white/60 text-sm">{u.sales_code ? `${u.sales_name}�?{u.sales_code}）` : '直销'}</td>
             <td className="px-4 py-3 text-white/60 text-sm">{new Date(u.created_at).toLocaleDateString('zh-CN')}</td>
           </tr>)}
         </AdminTable>}
@@ -1466,10 +1481,10 @@ function AdminPage() {
         {tab === 'sales' && (
           <div className="space-y-4">
                   <div className="glass rounded-2xl p-6">
-              <h4 className="font-semibold mb-4">添加销售</h4>
+              <h4 className="font-semibold mb-4">添加销�?/h4>
               <div className="grid md:grid-cols-4 gap-3">
                 {(['name','code_prefix','phone','password'] as const).map(k => (
-                  <input key={k} placeholder={{ name:'姓名', code_prefix:'销售码（如B001）', phone:'手机号', password:'密码' }[k]}
+                  <input key={k} placeholder={{ name:'姓名', code_prefix:'销售码（如B001�?, phone:'手机�?, password:'密码' }[k]}
                     value={newSales[k]} onChange={e => setNewSales(p => ({ ...p, [k]: e.target.value }))}
                     className="rounded-lg bg-white/5 border border-white/10 px-4 py-2.5 text-sm outline-none focus:border-brand-500 text-white" />
                 ))}
@@ -1478,7 +1493,7 @@ function AdminPage() {
                 <Btn primary onClick={async () => {
                   try { await aPost('/admin/sales', newSales); const s = await aGet<any[]>('/admin/sales'); setSales(s); setNewSales({ name:'', code_prefix:'', phone:'', password:'' }); setMsg('添加成功'); setTimeout(() => setMsg(''), 2000); }
                   catch (e: any) { setMsg(e.message); }
-                }}>添加销售</Btn>
+                }}>添加销�?/Btn>
                 {msg && <span className="text-green-400 text-sm">{msg}</span>}
               </div>
             </div>
@@ -1491,7 +1506,7 @@ function AdminPage() {
                 <td className="px-4 py-3 text-white/60 text-sm">{new Date(s.created_at).toLocaleDateString('zh-CN')}</td>
                 <td className="px-4 py-3">
                   <button onClick={async () => {
-                    if (!confirm('确认删除？')) return;
+                    if (!confirm('确认删除�?)) return;
                     await fetch(`/api/admin/sales/${s.id}`, { method: 'DELETE', headers: h });
                     const ss = await aGet<any[]>('/admin/sales'); setSales(ss);
                   }} className="text-red-400 hover:text-red-300 border border-red-400/30 hover:border-red-400/60 text-xs px-3 py-1.5 rounded-lg transition-all">删除</button>
@@ -1525,8 +1540,7 @@ function AdminPage() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 销售后台
-// ════════════════════════════════════════════════════════════════════════════
+// 销售后�?// ════════════════════════════════════════════════════════════════════════════
 function SalesPage() {
   const [salesToken, setSalesToken] = useState(localStorage.getItem('salesToken') || '');
   const [loginForm, setLoginForm]   = useState({ code_prefix: '', password: '' });
@@ -1555,9 +1569,9 @@ function SalesPage() {
   if (!salesToken) return (
     <section className="pt-32 pb-20 px-6">
       <div className="max-w-sm mx-auto">
-        <h1 className="text-3xl font-display font-bold mb-8 text-center">销售登录</h1>
+        <h1 className="text-3xl font-display font-bold mb-8 text-center">销售登�?/h1>
         <form onSubmit={salesLogin} className="glass rounded-2xl p-8 space-y-4">
-          <GlassInput label="销售码（如 A001）" value={loginForm.code_prefix} onChange={v => setLoginForm(p => ({ ...p, code_prefix: v.toUpperCase() }))} />
+          <GlassInput label="销售码（如 A001�? value={loginForm.code_prefix} onChange={v => setLoginForm(p => ({ ...p, code_prefix: v.toUpperCase() }))} />
           <GlassInput label="密码" value={loginForm.password} onChange={v => setLoginForm(p => ({ ...p, password: v }))} type="password" />
           {loginErr && <ErrBox msg={loginErr} />}
           <Btn type="submit" primary full>登录</Btn>
@@ -1572,7 +1586,7 @@ function SalesPage() {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">销售工作台</h1>
           <button onClick={() => { localStorage.removeItem('salesToken'); setSalesToken(''); }}
-            className="glass text-white/50 hover:text-white text-sm px-4 py-2 rounded-lg transition-all">退出</button>
+            className="glass text-white/50 hover:text-white text-sm px-4 py-2 rounded-lg transition-all">退�?/button>
       </div>
 
         <div className="flex gap-2 mb-6 pb-4 border-b border-white/8">
@@ -1584,10 +1598,10 @@ function SalesPage() {
             ))}
           </div>
 
-        {tab === 'customers' && <AdminTable headers={['手机','套餐','到期时间','剩余天数','状态','注册时间']}>
+        {tab === 'customers' && <AdminTable headers={['手机','套餐','到期时间','剩余天数','状�?,'注册时间']}>
           {customers.map(c => <tr key={c.id} className="border-b border-white/5">
             <td className="px-4 py-3 text-white/60 text-sm">{c.phone}</td>
-            <td className="px-4 py-3 text-white/60 text-sm">{c.is_activated ? (c.package_type === 'VIP3' ? '专业版' : '基础版') : '-'}</td>
+            <td className="px-4 py-3 text-white/60 text-sm">{c.is_activated ? (c.package_type === 'VIP3' ? '专业�? : '基础�?) : '-'}</td>
             <td className="px-4 py-3 text-white/60 text-sm">{c.expire_date ? new Date(c.expire_date).toLocaleDateString('zh-CN') : '-'}</td>
             <td className={`px-4 py-3 text-sm font-semibold ${c.days_left < 10 ? 'text-red-400' : 'text-green-400'}`}>{c.expire_date ? `${c.days_left}天` : '-'}</td>
             <td className="px-4 py-3"><StatusBadge s={c.is_activated ? 'paid' : 'pending'} /></td>
@@ -1595,7 +1609,7 @@ function SalesPage() {
           </tr>)}
         </AdminTable>}
 
-        {tab === 'orders' && <AdminTable headers={['#','客户','联系','套餐','金额','状态','时间']}>
+        {tab === 'orders' && <AdminTable headers={['#','客户','联系','套餐','金额','状�?,'时间']}>
           {orders.map(o => <tr key={o.id} className="border-b border-white/5">
             {[o.id, o.customer_name, o.contact, o.plan, o.amount ? `¥${o.amount}` : '-',,
               new Date(o.created_at).toLocaleDateString('zh-CN')].map((v, i) =>
@@ -1610,8 +1624,7 @@ function SalesPage() {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 通用小组件
-// ════════════════════════════════════════════════════════════════════════════
+// 通用小组�?// ════════════════════════════════════════════════════════════════════════════
 function QuotaBar({ label, remaining, base, color }: { label: string; remaining: number; base: number; color: string }) {
   const extra    = Math.max(0, remaining - base);
   const baseUsed = Math.max(0, base - Math.min(remaining, base));
@@ -1637,9 +1650,9 @@ function QuotaBar({ label, remaining, base, color }: { label: string; remaining:
 
 function StatusBadge({ s }: { s: string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    paid:    { label: '已完成', cls: 'bg-green-500/15 text-green-400' },
-    pending: { label: '待处理', cls: 'bg-yellow-500/15 text-yellow-400' },
-    active:  { label: '已激活', cls: 'bg-green-500/15 text-green-400' },
+    paid:    { label: '已完�?, cls: 'bg-green-500/15 text-green-400' },
+    pending: { label: '待处�?, cls: 'bg-yellow-500/15 text-yellow-400' },
+    active:  { label: '已激�?, cls: 'bg-green-500/15 text-green-400' },
   };
   const info = map[s] || { label: s, cls: 'bg-white/5 text-white/40' };
   return <span className={`text-xs px-3 py-1 rounded-full ${info.cls}`}>{info.label}</span>;
@@ -1661,3 +1674,4 @@ function AdminTable({ headers, children }: { headers: string[]; children: React.
     </div>
   );
 }
+
