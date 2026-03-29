@@ -35,6 +35,33 @@ app.use((req, res, next) => {
 app.use(express.json());
 initDb();
 
+// ── 短信验证码持久化（存 DB，重启不丢失）────────────────────────────────────
+// 建表（如果还没有）
+db.exec(`
+  CREATE TABLE IF NOT EXISTS sms_codes (
+    phone     TEXT PRIMARY KEY,
+    code      TEXT NOT NULL,
+    expires_at INTEGER NOT NULL
+  );
+`);
+function smsSet(phone: string, code: string) {
+  const expiresAt = Date.now() + 10 * 60 * 1000; // 10分钟有效
+  db.prepare('INSERT OR REPLACE INTO sms_codes (phone, code, expires_at) VALUES (?, ?, ?)')
+    .run(phone, code, expiresAt);
+}
+function smsGet(phone: string): { code: string; expiresAt: number } | undefined {
+  const row = db.prepare('SELECT code, expires_at FROM sms_codes WHERE phone = ?').get(phone) as any;
+  if (!row) return undefined;
+  return { code: row.code, expiresAt: row.expires_at };
+}
+function smsDel(phone: string) {
+  db.prepare('DELETE FROM sms_codes WHERE phone = ?').run(phone);
+}
+// 定期清理过期验证码（每5分钟）
+setInterval(() => {
+  db.prepare('DELETE FROM sms_codes WHERE expires_at < ?').run(Date.now());
+}, 5 * 60 * 1000);
+
 // ── 工具函数 ──────────────────────────────────────────────────────────────────
 const SALT = process.env.PASSWORD_SALT || 'nebula_xingkong_2026_salt';
 if (NODE_ENV === 'production' && !process.env.PASSWORD_SALT) {
@@ -60,7 +87,7 @@ function generateLicenseKey(phone: string): string {
 
 // ── 套餐配置（月数 → AI额度）────────────────────────────────────────────────
 const PACKAGE_QUOTA: Record<string, { image: number; video: number; edit: number }> = {
-  VIP1:  { image: 0,  video: 0,  edit: 0  }, // 基础版无AI额度
+  VIP1:  { image: 5,  video: 3,  edit: 5  }, // 基础版每月AI额度
   VIP3:  { image: 20, video: 15, edit: 15 }, // 专业版每月额度
   ADDON: { image: 10, video: 10, edit: 10 }, // 加速包一次性增加
 };
@@ -80,15 +107,20 @@ const WECHAT_APPID = process.env.WECHAT_APPID || WECHAT_CONFIG.appid;
  * https://pay.weixin.qq.com/wiki/doc/apiv3/apis/chapter3_1_1.shtml
  */
 function generateWechatSign(params: Record<string, string>): string {
-  const sorted = Object.keys(params).sort().map(k => `${k}=${params[k]}`).join('&');
+  // 过滤空值和 sign 字段，按 ASCII 排序，拼接 &key=
+  const sorted = Object.keys(params)
+    .filter(k => k !== 'sign' && params[k] !== '' && params[k] !== undefined && params[k] !== null)
+    .sort()
+    .map(k => `${k}=${params[k]}`)
+    .join('&');
   const stringA = sorted + `&key=${WECHAT_API_KEY}`;
-  return crypto.createHash('md5').update(stringA).digest('hex').toUpperCase();
+  return crypto.createHash('md5').update(stringA, 'utf8').digest('hex').toUpperCase();
 }
 
 /**
  * 创建微信支付订单（Native模式，返回二维码链接）
  */
-async function createWechatPayOrder(orderId: number, amount: number, description: string): Promise<{ code_url: string; prepay_id: string }> {
+async function createWechatPayOrder(orderId: number, amount: number, description: string): Promise<{ code_url: string; prepay_id: string; out_trade_no: string }> {
   const nonceStr = crypto.randomBytes(16).toString('hex').substring(0, 32);
   const outTradeNo = `NK${Date.now()}${Math.floor(Math.random() * 1000)}`;
   
@@ -96,15 +128,16 @@ async function createWechatPayOrder(orderId: number, amount: number, description
     appid: WECHAT_APPID,
     mch_id: WECHAT_MCH_ID,
     nonce_str: nonceStr,
+    sign_type: 'MD5',
     body: description,
     out_trade_no: outTradeNo,
     total_fee: String(Math.round(amount * 100)), // 单位：分
-    spbill_create_ip: '123.125.115.110',
+    spbill_create_ip: '59.110.10.226',
     notify_url: WECHAT_NOTIFY_URL,
     trade_type: 'NATIVE',
   };
   
-  // 签名
+  // 签名（参数按 ASCII 排序，空值排除在外）
   params.sign = generateWechatSign(params);
   
   // 生成XML
@@ -145,6 +178,7 @@ async function createWechatPayOrder(orderId: number, amount: number, description
   return {
     code_url: xmlObj.code_url,
     prepay_id: xmlObj.prepay_id,
+    out_trade_no: outTradeNo,
   };
 }
 
@@ -166,7 +200,7 @@ function getExpectedPrice(package_type: string, months: number): number | null {
 }
 
 // ── 内存存储 ──────────────────────────────────────────────────────────────────
-const smsCodes    = new Map<string, { code: string; expiresAt: number }>();
+// 注意：smsCodes 已迁移到数据库，见下方 smsDb 函数，重启服务器不再丢失验证码
 const userTokens  = new Map<string, number>();
 const salesTokens = new Map<string, number>();
 // 管理员动态 session：token → 过期时间戳（24小时）
@@ -244,13 +278,14 @@ function requireUser(req: any, res: express.Response, next: express.NextFunction
 
 // ── AI 额度月度重置（每次获取用户信息时检查）─────────────────────────────────
 function maybeResetQuota(user: any) {
-  if (!user.quota_reset_date || user.package_type !== 'VIP3') return user;
+  const pkgQuota = PACKAGE_QUOTA[user.package_type];
+  if (!user.quota_reset_date || !pkgQuota) return user;
   const lastReset = new Date(user.quota_reset_date);
   const now = new Date();
   // 距上次重置超过30天则重置
   const diffDays = (now.getTime() - lastReset.getTime()) / (1000 * 60 * 60 * 24);
   if (diffDays >= 30) {
-    const quota = PACKAGE_QUOTA['VIP3'];
+    const quota = pkgQuota;
     const nowStr = now.toISOString();
     db.prepare(`
       UPDATE users SET
@@ -311,7 +346,7 @@ app.post('/api/sms/send', async (req, res) => {
     return res.status(400).json({ error: '请输入正确的手机号（11位国内手机号）' });
 
   const code = Math.floor(100000 + Math.random() * 900000).toString();
-  smsCodes.set(phone, { code, expiresAt: Date.now() + 5 * 60 * 1000 });
+  smsSet(phone, code);
 
   // 尝试真实发送
   if (SMS_READY) {
@@ -319,16 +354,16 @@ app.post('/api/sms/send', async (req, res) => {
     if (!ok) {
       console.error(`[SMS] ❌ 阿里云发送失败（${phone}）: ${msg}`);
       // 发送失败时删除验证码，避免无效码残留
-      smsCodes.delete(phone);
+      smsDel(phone);
       return res.status(500).json({ error: `短信发送失败：${msg}，请稍后重试` });
     }
     console.log(`[SMS] ✅ 阿里云发送成功: ${phone}`);
-    return res.json({ success: true, message: '验证码已发送（5分钟有效）' });
+    return res.json({ success: true, message: '验证码已发送（10分钟有效）' });
   }
 
   if (NODE_ENV === 'production') {
     // 生产环境短信未配置：清除验证码，拒绝请求
-    smsCodes.delete(phone);
+    smsDel(phone);
     console.error('[SMS] ❌ 生产环境短信服务未配置，拒绝发送');
     return res.status(500).json({ error: '短信服务暂不可用，请联系管理员' });
   }
@@ -346,7 +381,7 @@ app.post('/api/sms/verify', (req, res) => {
   const { phone, code } = req.body || {};
   if (!phone || !code)
     return res.status(400).json({ valid: false, error: '手机号和验证码不能为空' });
-  const stored = smsCodes.get(phone);
+  const stored = smsGet(phone);
   if (!stored || stored.code !== String(code).trim() || Date.now() > stored.expiresAt)
     return res.json({ valid: false, error: '验证码错误或已过期' });
   // 验证通过但不删除（由注册接口消耗），允许多次验证
@@ -367,10 +402,10 @@ app.post('/api/auth/register', (req, res) => {
       return res.status(400).json({ error: '密码至少6位' });
 
     // 校验验证码
-    const stored = smsCodes.get(phone);
+    const stored = smsGet(phone);
     if (!stored || stored.code !== smsCode || Date.now() > stored.expiresAt)
       return res.status(400).json({ error: '验证码错误或已过期，请重新获取' });
-    smsCodes.delete(phone);
+    smsDel(phone);
 
     // 查找销售
     let salesId: number | null = null;
@@ -631,17 +666,17 @@ app.get('/api/license/quota', (req, res) => {
 
     if (!user || !user.is_activated) return res.status(403).json({ error: '无效授权码' });
 
-    // 每月自动重置额度（与 /api/user/info 保持一致）
+    // 每月自动重置额度
     user = maybeResetQuota(user);
 
     const now = new Date();
     if (user.expire_date && new Date(user.expire_date) <= now)
       return res.status(403).json({ error: '授权已过期，请续费' });
 
-    if (user.package_type !== 'VIP3')
-      return res.status(403).json({ error: '该功能需要专业版' });
-  
-  res.json({
+    if (!PACKAGE_QUOTA[user.package_type])
+      return res.status(403).json({ error: '套餐类型不支持 AI 功能' });
+
+    res.json({
       image: user.ai_image_quota ?? 0,
       video: user.ai_video_quota ?? 0,
       edit:  user.ai_edit_quota  ?? 0,
@@ -667,7 +702,7 @@ app.post('/api/license/quota/use', (req, res) => {
     ).get(key) as any;
 
     if (!user || !user.is_activated) return res.status(403).json({ error: '无效授权码' });
-    if (user.package_type !== 'VIP3') return res.status(403).json({ error: '需要专业版' });
+    if (!PACKAGE_QUOTA[user.package_type]) return res.status(403).json({ error: '套餐类型不支持 AI 功能' });
 
     const now = new Date();
     if (user.expire_date && new Date(user.expire_date) <= now)
@@ -727,15 +762,23 @@ app.get('/api/version', (_req, res) => {
 // ════════════════════════════════════════════════════════════════════════════
 app.get('/api/license/verify', (req, res) => {
   try {
-    const key = String(req.query.key || '').trim().toUpperCase();
+    const key   = String(req.query.key   || '').trim().toUpperCase();
+    const phone = String(req.query.phone || '').trim();   // 可选：注册时传入用于绑定校验
+
     if (!key) return res.status(400).json({ valid: false, error: '缺少授权码参数' });
 
     const user = db.prepare(
       'SELECT id, phone, package_type, expire_date, is_activated FROM users WHERE license_key = ?'
     ).get(key) as any;
 
-    if (!user)       return res.json({ valid: false, error: '无效的授权码' });
+    if (!user)            return res.json({ valid: false, error: '无效的授权码' });
     if (!user.is_activated) return res.json({ valid: false, error: '账户未激活' });
+
+    // ── 手机号绑定校验（仅当客户端传入 phone 时执行）────────────────────────
+    // 激活码与手机号必须一一对应，防止他人拿激活码注册
+    if (phone && user.phone !== phone) {
+      return res.json({ valid: false, error: '手机号与激活码不匹配，请使用购买时填写的手机号' });
+    }
 
     const now = new Date();
     const expireDate = user.expire_date ? new Date(user.expire_date) : null;
@@ -756,7 +799,6 @@ app.get('/api/license/verify', (req, res) => {
       package_type: user.package_type,
       expire_date: user.expire_date,
       days_left: daysLeft,
-      // 脱敏手机号，方便用户核对
       phone_masked: user.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2'),
     });
   } catch (err: any) {
@@ -904,12 +946,12 @@ app.post('/api/admin/send-code', async (req, res) => {
     return res.status(429).json({ error: '获取验证码过于频繁，请 15 分钟后再试' });
 
   const code = Math.floor(100000 + Math.random() * 900000).toString();
-  smsCodes.set(ADMIN_PHONE, { code, expiresAt: Date.now() + 5 * 60 * 1000 });
+  smsSet(ADMIN_PHONE, code);
 
   if (SMS_READY) {
     const { ok, msg } = await sendAliyunSMS(ADMIN_PHONE, code);
     if (!ok) {
-      smsCodes.delete(ADMIN_PHONE);
+      smsDel(ADMIN_PHONE);
       return res.status(500).json({ error: `短信发送失败：${msg}` });
     }
     recordLoginFailure(rlKey);
@@ -917,7 +959,7 @@ app.post('/api/admin/send-code', async (req, res) => {
   }
 
   if (NODE_ENV === 'production') {
-    smsCodes.delete(ADMIN_PHONE);
+    smsDel(ADMIN_PHONE);
     return res.status(500).json({ error: '短信服务未配置，无法发送验证码' });
   }
 
@@ -934,13 +976,13 @@ app.post('/api/admin/login', (req, res) => {
   if (!checkRateLimit(rlKey))
     return res.status(429).json({ error: '验证尝试过于频繁，请稍后再试' });
 
-  const stored = smsCodes.get(ADMIN_PHONE);
+  const stored = smsGet(ADMIN_PHONE);
   if (!stored || stored.code !== String(code).trim() || Date.now() > stored.expiresAt) {
     recordLoginFailure(rlKey);
     return res.status(401).json({ error: '验证码错误或已过期，请重新获取' });
   }
 
-  smsCodes.delete(ADMIN_PHONE);
+  smsDel(ADMIN_PHONE);
   clearLoginAttempts(rlKey);
   const sessionToken = generateToken();
   adminTokens.set(sessionToken, Date.now() + ADMIN_SESSION_TTL);
@@ -1147,44 +1189,58 @@ if (NODE_ENV === 'production') {
 // 微信支付接口
 // ════════════════════════════════════════════════════════════════════════════
 
-// 创建支付订单（用户扫码支付）
+// 创建支付订单（自动建单 + 获取微信二维码）
 app.post('/api/pay/create', requireUser, async (req: any, res) => {
   try {
-    const { order_id, package_type, months, amount } = req.body || {};
-    
-    if (!order_id || !package_type || amount === undefined) {
+    const { package_type, months, amount } = req.body || {};
+
+    if (!package_type || amount === undefined) {
       return res.status(400).json({ error: '缺少必要参数' });
     }
 
-    // 服务端金额校验
+    // 服务端金额校验（防篡改）
     const expectedPrice = getExpectedPrice(package_type, Number(months || 0));
-    if (expectedPrice !== null && Number(amount) !== expectedPrice) {
-      return res.status(400).json({ error: `价格异常，请刷新页面后重试` });
+    if (expectedPrice !== null && Math.abs(Number(amount) - expectedPrice) > 1) {
+      return res.status(400).json({ error: '价格异常，请刷新页面后重试' });
     }
 
-    // 获取订单信息
-    const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(order_id, req.userId) as any;
-    if (!order) {
-      return res.status(404).json({ error: '订单不存在' });
-    }
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.userId) as any;
+    if (!user) return res.status(404).json({ error: '用户不存在' });
 
-    // 如果已支付，直接返回成功
-    if (order.status === 'paid') {
-      return res.json({ success: true, status: 'paid', message: '订单已完成支付' });
-    }
+    const now = new Date();
+    const nowStr = now.toISOString();
+    const planLabel = package_type === 'ADDON' ? 'AI加速包' : package_type === 'VIP3' ? '专业版' : '基础版';
+    const description = `星空AI-${planLabel}${months ? months + '个月' : ''}`;
 
-    // 创建微信支付订单
-    const description = `星空AI-${package_type === 'ADDON' ? 'AI加速包' : package_type === 'VIP3' ? '专业版' : '基础版'}${months}个月`;
-    
+    // 创建待支付订单
+    const orderInfo = db.prepare(
+      `INSERT INTO orders (customer_name, contact, plan, description, status, sales_id, user_id, months, package_type, amount, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      user.company_name || user.phone,
+      user.phone,
+      planLabel,
+      description,
+      user.sales_id || null,
+      req.userId,
+      Number(months || 0),
+      package_type,
+      Number(amount),
+      nowStr,
+      nowStr,
+    );
+    const order_id = orderInfo.lastInsertRowid as number;
+
+    // 调用微信统一下单
     const payResult = await createWechatPayOrder(order_id, Number(amount), description);
-    
-    // 更新订单的 out_trade_no
-    db.prepare('UPDATE orders SET description = ? WHERE id = ?').run(description, order_id);
+
+    // 保存 out_trade_no 用于回调匹配
+    db.prepare('UPDATE orders SET out_trade_no = ? WHERE id = ?').run(payResult.out_trade_no, order_id);
 
     res.json({
       success: true,
       code_url: payResult.code_url,
-      order_id: order_id,
+      order_id,
     });
   } catch (err: any) {
     console.error('[pay/create error]', err);
@@ -1192,11 +1248,38 @@ app.post('/api/pay/create', requireUser, async (req: any, res) => {
   }
 });
 
+// 查询支付状态（前端点"我已完成付款"时调用）
+app.get('/api/pay/check/:order_id', requireUser, (req: any, res) => {
+  try {
+    const order_id = Number(req.params.order_id);
+    const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(order_id, req.userId) as any;
+    if (!order) return res.status(404).json({ error: '订单不存在' });
+
+    if (order.status !== 'paid') {
+      return res.json({ paid: false, status: order.status });
+    }
+
+    const user = db.prepare('SELECT expire_date, package_type FROM users WHERE id = ?').get(req.userId) as any;
+    const now = new Date();
+    const expireDate = user?.expire_date ? new Date(user.expire_date) : null;
+    const daysLeft = expireDate ? Math.max(0, Math.ceil((expireDate.getTime() - now.getTime()) / 86400000)) : 0;
+
+    res.json({
+      paid: true,
+      expire_date: user?.expire_date,
+      days_left: daysLeft,
+      package_type: user?.package_type,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: '查询失败' });
+  }
+});
+
 // 微信支付回调（支付成功后自动激活）
-app.post('/api/pay/notify', async (req, res) => {
+app.post('/api/pay/notify', express.text({ type: '*/*' }), async (req, res) => {
   try {
     const body = req.body;
-    console.log('[WechatPay] notify received:', JSON.stringify(body));
+    console.log('[WechatPay] notify received:', typeof body === 'string' ? body.substring(0, 200) : JSON.stringify(body));
 
     // 解析XML
     const parseXml = (xml: string): Record<string, string> => {
@@ -1239,16 +1322,23 @@ app.post('/api/pay/notify', async (req, res) => {
     // 支付成功，更新订单状态
     const outTradeNo = params.out_trade_no;
     const transactionId = params.transaction_id;
-    const paidAmount = Number(params.total_fee) / 100; // 分转元
 
-    // 查找订单（通过 out_trade_no 或 description 匹配）
-    // 这里简化处理，实际应该存储 out_trade_no
-    const orders = db.prepare('SELECT * FROM orders WHERE status != ? ORDER BY created_at DESC LIMIT 10').all('paid') as any[];
-    
+    // 通过 out_trade_no 精准匹配订单
+    const order = db.prepare('SELECT * FROM orders WHERE out_trade_no = ?').get(outTradeNo) as any;
+    if (!order) {
+      console.error('[WechatPay] 未找到对应订单:', outTradeNo);
+      return res.send('<xml><return_code><![CDATA[SUCCESS]]></return_code><return_msg><![CDATA[OK]]></return_msg></xml>');
+    }
+
+    // 防止重复处理
+    if (order.status === 'paid') {
+      return res.send('<xml><return_code><![CDATA[SUCCESS]]></return_code><return_msg><![CDATA[OK]]></return_msg></xml>');
+    }
+
     let updatedOrder: any = null;
-    for (const order of orders) {
-      // 简单匹配：金额相近且时间相近
-      if (Math.abs(order.amount - paidAmount) < 1) {
+    {
+      const ordersLocal = [order];
+      for (const order of ordersLocal) {
         db.prepare('UPDATE orders SET status = ?, paid_at = ?, transaction_id = ?, updated_at = ? WHERE id = ?')
           .run('paid', new Date().toISOString(), transactionId, new Date().toISOString(), order.id);
         
@@ -1279,11 +1369,24 @@ app.post('/api/pay/notify', async (req, res) => {
             editQuota = quota.edit;
           }
 
+          // 生成授权码（首次购买时生成，续费不变）
+          let licenseKey = user.license_key;
+          if (!licenseKey && order.package_type !== 'ADDON') {
+            let attempts = 0;
+            while (!licenseKey && attempts < 10) {
+              const candidate = generateLicenseKey(user.phone);
+              const exists = db.prepare('SELECT id FROM users WHERE license_key = ?').get(candidate);
+              if (!exists) licenseKey = candidate;
+              attempts++;
+            }
+          }
+
           db.prepare(`
             UPDATE users SET
               is_activated = 1,
               package_type = COALESCE(?, package_type),
               expire_date = CASE WHEN ? != 'ADDON' THEN ? ELSE expire_date END,
+              license_key = COALESCE(license_key, ?),
               ai_image_quota = ?,
               ai_video_quota = ?,
               ai_edit_quota = ?,
@@ -1293,6 +1396,7 @@ app.post('/api/pay/notify', async (req, res) => {
             order.package_type,
             order.package_type,
             expireDate.toISOString(),
+            licenseKey,
             imageQuota, videoQuota, editQuota,
             new Date().toISOString(),
             user.id
@@ -1305,7 +1409,7 @@ app.post('/api/pay/notify', async (req, res) => {
     }
 
     if (updatedOrder) {
-      console.log('[WechatPay] 订单已激活:', updatedOrder.id);
+      console.log('[WechatPay] 订单已激活, id:', updatedOrder.id, 'out_trade_no:', outTradeNo);
     }
 
     res.send('<xml><return_code><![CDATA[SUCCESS]]></return_code><return_msg><![CDATA[OK]]></return_msg></xml>');
