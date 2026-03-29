@@ -284,7 +284,7 @@ function maybeResetQuota(user: any) {
   // 距上次重置超过30天则重置
   const diffDays = (now.getTime() - lastReset.getTime()) / (1000 * 60 * 60 * 24);
   if (diffDays >= 30) {
-    const quota = pkgQuota;
+    const quota = PACKAGE_QUOTA['VIP3'] || { image: 20, video: 15, edit: 15 };
     const nowStr = now.toISOString();
     db.prepare(`
       UPDATE users SET
@@ -1461,17 +1461,7 @@ app.post('/api/pay/notify', express.text({ type: '*/*' }), async (req, res) => {
           let videoQuota = user.ai_video_quota || 0;
           let editQuota = user.ai_edit_quota || 0;
           
-          if (order.package_type === 'ADDON') {
-            imageQuota += quota.image;
-            videoQuota += quota.video;
-            editQuota += quota.edit;
-          } else {
-            imageQuota = quota.image;
-            videoQuota = quota.video;
-            editQuota = quota.edit;
-          }
-
-          // 生成授权码（首次购买时生成，续费不变）
+          // 生成授权码（首次购买时生成，续费不变；ADDON 不改主授权码）
           let licenseKey = user.license_key;
           if (!licenseKey && order.package_type !== 'ADDON') {
             let attempts = 0;
@@ -1483,26 +1473,45 @@ app.post('/api/pay/notify', express.text({ type: '*/*' }), async (req, res) => {
             }
           }
 
-          db.prepare(`
-            UPDATE users SET
-              is_activated = 1,
-              package_type = COALESCE(?, package_type),
-              expire_date = CASE WHEN ? != 'ADDON' THEN ? ELSE expire_date END,
-              license_key = COALESCE(license_key, ?),
-              ai_image_quota = ?,
-              ai_video_quota = ?,
-              ai_edit_quota = ?,
-              updated_at = ?
-            WHERE id = ?
-          `).run(
-            order.package_type,
-            order.package_type,
-            expireDate.toISOString(),
-            licenseKey,
-            imageQuota, videoQuota, editQuota,
-            new Date().toISOString(),
-            user.id
-          );
+          if (order.package_type === 'ADDON') {
+            // ADDON：生成激活码存入 addon_codes，不直接加额度
+            // 用户需在软件中输入激活码后才真正到账
+            const addonRaw = crypto.createHash('sha256')
+              .update(`addon_notify_${user.id}_${Date.now()}_${Math.random()}`).digest('hex').toUpperCase();
+            const addonCode = `ADDN-${addonRaw.slice(0,4)}-${addonRaw.slice(4,8)}-${addonRaw.slice(8,12)}`;
+            const expiresAt = new Date(now);
+            expiresAt.setDate(expiresAt.getDate() + 30);
+            const nowStr = now.toISOString();
+            db.prepare(
+              `INSERT OR IGNORE INTO addon_codes (code, user_id, image_add, video_add, edit_add, is_used, created_at, expires_at)
+               VALUES (?, ?, ?, ?, ?, 0, ?, ?)`
+            ).run(addonCode, user.id, quota.image, quota.video, quota.edit, nowStr, expiresAt.toISOString());
+            // 仅更新订单状态，不改用户额度
+            db.prepare('UPDATE users SET updated_at = ? WHERE id = ?').run(nowStr, user.id);
+          } else {
+            // VIP1/VIP3：直接更新用户套餐信息和额度
+            db.prepare(`
+              UPDATE users SET
+                is_activated = 1,
+                package_type = COALESCE(?, package_type),
+                expire_date  = ?,
+                license_key  = COALESCE(license_key, ?),
+                ai_image_quota = ?,
+                ai_video_quota = ?,
+                ai_edit_quota  = ?,
+                quota_reset_date = CASE WHEN quota_reset_date IS NULL THEN ? ELSE quota_reset_date END,
+                updated_at   = ?
+              WHERE id = ?
+            `).run(
+              order.package_type,
+              expireDate.toISOString(),
+              licenseKey,
+              quota.image, quota.video, quota.edit,
+              now.toISOString(),
+              now.toISOString(),
+              user.id
+            );
+          }
         }
         
         updatedOrder = order;
