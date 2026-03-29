@@ -87,7 +87,7 @@ function generateLicenseKey(phone: string): string {
 
 // ── 套餐配置（月数 → AI额度）────────────────────────────────────────────────
 const PACKAGE_QUOTA: Record<string, { image: number; video: number; edit: number }> = {
-  VIP1:  { image: 5,  video: 3,  edit: 5  }, // 基础版每月AI额度
+  VIP1:  { image: 0,  video: 0,  edit: 0  }, // 基础版无AI额度
   VIP3:  { image: 20, video: 15, edit: 15 }, // 专业版每月额度
   ADDON: { image: 10, video: 10, edit: 10 }, // 加速包一次性增加
 };
@@ -278,8 +278,7 @@ function requireUser(req: any, res: express.Response, next: express.NextFunction
 
 // ── AI 额度月度重置（每次获取用户信息时检查）─────────────────────────────────
 function maybeResetQuota(user: any) {
-  const pkgQuota = PACKAGE_QUOTA[user.package_type];
-  if (!user.quota_reset_date || !pkgQuota) return user;
+  if (!user.quota_reset_date || user.package_type !== 'VIP3') return user;
   const lastReset = new Date(user.quota_reset_date);
   const now = new Date();
   // 距上次重置超过30天则重置
@@ -509,8 +508,19 @@ app.get('/api/user/orders', requireUser, (req: any, res) => {
     if (!user) return res.status(404).json({ error: '用户不存在' });
     const orders = db.prepare(
       'SELECT * FROM orders WHERE contact = ? OR user_id = ? ORDER BY created_at DESC'
-    ).all(user.phone, req.userId);
-    res.json(orders);
+    ).all(user.phone, req.userId) as any[];
+
+    // 对 ADDON 订单，附带对应的激活码（未使用或已使用均返回，方便用户查看历史）
+    const ordersWithAddon = orders.map(o => {
+      if (o.package_type === 'ADDON') {
+        const ac = db.prepare(
+          'SELECT code, is_used FROM addon_codes WHERE user_id = ? ORDER BY created_at DESC LIMIT 1'
+        ).get(req.userId) as any;
+        return { ...o, addon_code: ac?.code ?? null, addon_used: ac?.is_used ?? 0 };
+      }
+      return o;
+    });
+    res.json(ordersWithAddon);
   } catch (err) {
     res.status(500).json({ error: '获取订单失败' });
   }
@@ -563,12 +573,29 @@ app.post('/api/orders/purchase', requireUser, (req: any, res) => {
     let editQuota  = user.ai_edit_quota  || 0;
     let newPkgType = user.package_type || package_type;
     let quotaResetDate = user.quota_reset_date || nowStr;
+    let addonCode: string | null = null;   // 仅 ADDON 时生成
 
     if (package_type === 'ADDON') {
-      // 加速包：叠加额度，不改套餐类型和到期时间
-      imageQuota += PACKAGE_QUOTA.ADDON.image;
-      videoQuota += PACKAGE_QUOTA.ADDON.video;
-      editQuota  += PACKAGE_QUOTA.ADDON.edit;
+      // 加速包：生成专属激活码，额度在软件端激活时才叠加（不提前写入 users）
+      const raw = crypto.createHash('sha256')
+        .update(`addon_${req.userId}_${Date.now()}_${Math.random()}`).digest('hex').toUpperCase();
+      addonCode = `ADDN-${raw.slice(0,4)}-${raw.slice(4,8)}-${raw.slice(8,12)}`;
+
+      // 有效期 30 天
+      const expiresAt = new Date(now);
+      expiresAt.setDate(expiresAt.getDate() + 30);
+      db.prepare(
+        `INSERT INTO addon_codes (code, user_id, image_add, video_add, edit_add, is_used, created_at, expires_at)
+         VALUES (?, ?, ?, ?, ?, 0, ?, ?)`
+      ).run(
+        addonCode,
+        req.userId,
+        PACKAGE_QUOTA.ADDON.image,
+        PACKAGE_QUOTA.ADDON.video,
+        PACKAGE_QUOTA.ADDON.edit,
+        nowStr,
+        expiresAt.toISOString(),
+      );
     } else {
       // 正式套餐：按新套餐重置月度额度
       const quota = PACKAGE_QUOTA[package_type] || { image: 0, video: 0, edit: 0 };
@@ -613,40 +640,105 @@ app.post('/api/orders/purchase', requireUser, (req: any, res) => {
       nowStr,
     );
 
-    // ── 激活/更新用户账户 ─────────────────────────────────────────────────────
+    // ── 激活/更新用户账户（ADDON 不更新额度字段，等软件端激活码核销时再更新）──
     db.prepare(`
       UPDATE users SET
         is_activated     = 1,
         package_type     = ?,
         expire_date      = CASE WHEN ? != 'ADDON' THEN ? ELSE expire_date END,
         license_key      = COALESCE(license_key, ?),
-        ai_image_quota   = ?,
-        ai_video_quota   = ?,
-        ai_edit_quota    = ?,
-        quota_reset_date = ?,
+        ai_image_quota   = CASE WHEN ? != 'ADDON' THEN ? ELSE ai_image_quota END,
+        ai_video_quota   = CASE WHEN ? != 'ADDON' THEN ? ELSE ai_video_quota END,
+        ai_edit_quota    = CASE WHEN ? != 'ADDON' THEN ? ELSE ai_edit_quota  END,
+        quota_reset_date = CASE WHEN ? != 'ADDON' THEN ? ELSE quota_reset_date END,
         updated_at       = ?
       WHERE id = ?
     `).run(
       newPkgType,
-      package_type, expireDateStr,   // CASE WHEN 参数
-      licenseKey,                    // COALESCE：只在为 NULL 时写入
-      imageQuota, videoQuota, editQuota,
-      quotaResetDate,
+      package_type, expireDateStr,
+      licenseKey,
+      package_type, imageQuota,
+      package_type, videoQuota,
+      package_type, editQuota,
+      package_type, quotaResetDate,
       nowStr,
       req.userId,
     );
 
     res.json({
-      success: true,
-      order_id: orderInfo.lastInsertRowid,
+      success:     true,
+      order_id:    orderInfo.lastInsertRowid,
       expire_date: package_type !== 'ADDON' ? expireDateStr : user.expire_date,
       package_type: newPkgType,
       license_key: licenseKey,
-      days_left: Math.ceil((expireDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
+      addon_code:  addonCode,   // ADDON 购买时返回专属激活码
+      days_left:   Math.ceil((expireDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
     });
   } catch (err: any) {
     console.error('[purchase error]', err);
     res.status(500).json({ error: '购买失败，请稍后重试' });
+  }
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// ADDON 激活码核销接口（桌面软件在额度弹窗内输入激活码后调用）
+// ════════════════════════════════════════════════════════════════════════════
+
+app.post('/api/license/addon/activate', (req, res) => {
+  try {
+    const { key, code } = req.body || {};
+    if (!key || !code)
+      return res.status(400).json({ error: '缺少参数 key 或 code' });
+
+    // 查找用户
+    const user = db.prepare('SELECT * FROM users WHERE license_key = ?').get(key) as any;
+    if (!user) return res.status(404).json({ error: '无效的授权码，请检查后重试' });
+
+    // 查找 addon_code
+    const ac = db.prepare('SELECT * FROM addon_codes WHERE code = ?').get(code) as any;
+    if (!ac) return res.status(404).json({ error: '加速包激活码无效，请检查是否输入正确' });
+    if (ac.is_used) return res.status(409).json({ error: '该激活码已使用，请勿重复激活' });
+
+    // 验证归属（只能由购买者激活）
+    if (ac.user_id !== user.id)
+      return res.status(403).json({ error: '该激活码与当前账号不匹配，请确认登录账号正确' });
+
+    // 检查有效期（30 天内）
+    if (ac.expires_at && new Date(ac.expires_at) < new Date())
+      return res.status(410).json({ error: '该激活码已过期（有效期 30 天），请联系客服' });
+
+    const nowStr = new Date().toISOString();
+
+    // 叠加额度
+    db.prepare(`
+      UPDATE users SET
+        ai_image_quota = ai_image_quota + ?,
+        ai_video_quota = ai_video_quota + ?,
+        ai_edit_quota  = ai_edit_quota  + ?,
+        updated_at     = ?
+      WHERE id = ?
+    `).run(ac.image_add, ac.video_add, ac.edit_add, nowStr, user.id);
+
+    // 标记已使用
+    db.prepare('UPDATE addon_codes SET is_used = 1, used_at = ? WHERE id = ?').run(nowStr, ac.id);
+
+    // 返回激活后最新额度
+    const updated = db.prepare(
+      'SELECT ai_image_quota, ai_video_quota, ai_edit_quota FROM users WHERE id = ?'
+    ).get(user.id) as any;
+
+    res.json({
+      success:     true,
+      image_added: ac.image_add,
+      video_added: ac.video_add,
+      edit_added:  ac.edit_add,
+      image_quota: updated.ai_image_quota,
+      video_quota: updated.ai_video_quota,
+      edit_quota:  updated.ai_edit_quota,
+    });
+  } catch (err: any) {
+    console.error('[addon/activate error]', err);
+    res.status(500).json({ error: '激活失败，请稍后重试' });
   }
 });
 
@@ -673,10 +765,10 @@ app.get('/api/license/quota', (req, res) => {
     if (user.expire_date && new Date(user.expire_date) <= now)
       return res.status(403).json({ error: '授权已过期，请续费' });
 
-    if (!PACKAGE_QUOTA[user.package_type])
-      return res.status(403).json({ error: '套餐类型不支持 AI 功能' });
-
-    res.json({
+    if (user.package_type !== 'VIP3')
+      return res.status(403).json({ error: '该功能需要专业版' });
+  
+  res.json({
       image: user.ai_image_quota ?? 0,
       video: user.ai_video_quota ?? 0,
       edit:  user.ai_edit_quota  ?? 0,
@@ -702,7 +794,7 @@ app.post('/api/license/quota/use', (req, res) => {
     ).get(key) as any;
 
     if (!user || !user.is_activated) return res.status(403).json({ error: '无效授权码' });
-    if (!PACKAGE_QUOTA[user.package_type]) return res.status(403).json({ error: '套餐类型不支持 AI 功能' });
+    if (user.package_type !== 'VIP3') return res.status(403).json({ error: '需要专业版' });
 
     const now = new Date();
     if (user.expire_date && new Date(user.expire_date) <= now)
@@ -1264,11 +1356,21 @@ app.get('/api/pay/check/:order_id', requireUser, (req: any, res) => {
     const expireDate = user?.expire_date ? new Date(user.expire_date) : null;
     const daysLeft = expireDate ? Math.max(0, Math.ceil((expireDate.getTime() - now.getTime()) / 86400000)) : 0;
 
+    // 如果是 ADDON 订单，查出关联的激活码（未使用的最新一条）
+    let addonCode: string | null = null;
+    if (order.package_type === 'ADDON') {
+      const ac = db.prepare(
+        'SELECT code FROM addon_codes WHERE user_id = ? AND is_used = 0 ORDER BY created_at DESC LIMIT 1'
+      ).get(req.userId) as any;
+      addonCode = ac?.code ?? null;
+    }
+
     res.json({
       paid: true,
       expire_date: user?.expire_date,
       days_left: daysLeft,
       package_type: user?.package_type,
+      addon_code: addonCode,
     });
   } catch (err: any) {
     res.status(500).json({ error: '查询失败' });

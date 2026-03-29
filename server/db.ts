@@ -81,6 +81,22 @@ export function initDb() {
     );
   `);
 
+  // addon_codes 表：存储 ADDON 加速包激活码（购买时生成，软件内激活时核销）
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS addon_codes (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      code       TEXT UNIQUE NOT NULL,
+      user_id    INTEGER NOT NULL,
+      image_add  INTEGER NOT NULL DEFAULT 10,
+      video_add  INTEGER NOT NULL DEFAULT 10,
+      edit_add   INTEGER NOT NULL DEFAULT 10,
+      is_used    INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      used_at    TEXT,
+      expires_at TEXT NOT NULL
+    )
+  `);
+
   // ── 数据库迁移：为已存在的旧表添加新字段 ──────────────────────────────────
   try { db.exec(`ALTER TABLE sales ADD COLUMN password TEXT`); } catch (_) {}
   try { db.exec(`ALTER TABLE orders ADD COLUMN paid_at TEXT`); } catch (_) {}
@@ -89,6 +105,8 @@ export function initDb() {
   try { db.exec(`ALTER TABLE orders ADD COLUMN user_id INTEGER`); } catch (_) {}
   try { db.exec(`ALTER TABLE orders ADD COLUMN months INTEGER DEFAULT 1`); } catch (_) {}
   try { db.exec(`ALTER TABLE orders ADD COLUMN package_type TEXT`); } catch (_) {}
+  try { db.exec(`ALTER TABLE orders ADD COLUMN transaction_id TEXT`); } catch (_) {}
+  try { db.exec(`ALTER TABLE orders ADD COLUMN out_trade_no TEXT`); } catch (_) {}
   try { db.exec(`ALTER TABLE activation_codes ADD COLUMN user_id INTEGER`); } catch (_) {}
   try { db.exec(`ALTER TABLE activation_codes ADD COLUMN used_at TEXT`); } catch (_) {}
   // users 新字段
