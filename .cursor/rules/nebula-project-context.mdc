@@ -1,0 +1,70 @@
+---
+description: 星空AI项目全局上下文，每次新对话自动加载
+globs:
+alwaysApply: true
+---
+
+# 星空AI 项目上下文
+
+## 项目结构
+- **网站端（当前workspace）**：`C:\Users\李\Desktop\星空AI\网站\nebula-business-ai---intelligent-enterprise-solutions`
+  - 主文件：`server/index.ts`（Node.js Express API + 微信支付）
+  - 数据库：SQLite `app.db`（云端数据库）
+  - 部署：服务器 59.110.10.226，域名 xingkongai.top
+
+- **软件端（Electron桌面应用）**：`C:\Users\李\Desktop\星空AI\nebula-business-ai`
+  - 主进程：`electron/main.cjs`
+  - IPC处理：`electron/ipcHandlers.cjs`（编译为 .jsc）
+  - 授权守卫：`electron/services/licenseGuard.cjs`（编译为 .jsc）
+  - 数据库服务：`electron/services/database.cjs`（编译为 .jsc）
+  - 前端组件：`components/`（React + TypeScript）
+  - 数据库：SQLite `nebula.db`（本地数据库）
+
+## 关键架构说明
+- 云端数据库（app.db）和本地数据库（nebula.db）是两套独立数据库
+- 授权通过 license_key（激活码）连接两端，软件通过 `/api/license/verify` 验证云端
+- licenseGuard.cjs 在后台每15分钟验证一次授权
+- 编译工具：bytenode（.cjs → .jsc 防反编译）
+
+## 套餐体系
+- **VIP1基础版 ¥99/月**：经营复盘 + 日常管理 + 员工管理
+- **VIP3专业版 ¥299/月**：VIP1全部 + AI营销（生图20/视频15/剪辑15）+ 经营分析 + 财务报税
+- **ADDON加速包 ¥88**：生图+10，视频+10，剪辑+10
+
+## 老板特权账号
+- 手机号：18018844437
+- license_key：OWNER-LIFETIME-001
+- package_type：VIP3，永不过期（expire_date=2099-12-31）
+
+## 服务器信息
+- IP：59.110.10.226
+- 用户名：root
+- 密码：yanis0814YY
+- 域名：xingkongai.top
+
+## ⚠️ 当前有大型改造任务进行中
+
+**任务清单文件**：`C:\Users\李\Desktop\星空AI\nebula-business-ai\TASK_PLAN.md`
+
+**新对话开始时，必须先读取 TASK_PLAN.md 了解当前进度！**
+
+### 任务概览（共10项）
+| # | 文件 | 描述 | 状态 |
+|---|------|------|------|
+| Bug1 | `electron/services/licenseGuard.cjs` 第267行 | owner账号写入本地DB（VIP3+license_key） | ❌ |
+| Bug2 | `electron/services/licenseGuard.cjs` 第154行 | 升级VIP1→VIP3不触发自毁，改为同步更新 | ❌ |
+| Bug3 | `electron/ipcHandlers.cjs` 第585行 | deleteByPhone 改 `!deleted` 为 `!deleted?.success` | ❌ |
+| Bug4 | `components/Auth.tsx` 第674行 | owner激活码用ref解决异步竞态 | ❌ |
+| Bug5 | `components/Settings.tsx` 约第660行 | 域名改为 xingkongai.top | ❌ |
+| 改6 | `components/Sidebar.tsx` 第183-234行 | UpgradeModal加激活码输入框+验证+改域名 | ❌ |
+| 改7 | `server/index.ts` 第630行 | 续费/升级生成新license_key（方案A） | ❌ |
+| 验8 | `package.json`（软件端） | 确认所有模块在打包配置内 | ❌ |
+| 验9 | `package.json`（软件端） | 版本号升到 1.1.0 | ❌ |
+| 验10 | 打包测试 | compile:secure → rebuild → build:win → 安装测试 | ❌ |
+
+## 已确认正确无需修改的组件
+- `components/LicenseExpiredModal.tsx` ✅（全屏弹窗，正确）
+- `components/QuotaExhaustedModal.tsx` ✅（加速包弹窗，正确）
+- `App.tsx` 到期触发逻辑 ✅
+- 注册流程4步 ✅
+- VIP1/VIP3功能分区 ✅

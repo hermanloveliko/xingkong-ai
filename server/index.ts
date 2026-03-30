@@ -242,9 +242,29 @@ try {
 
 // ── 管理员配置（唯一管理员，手机验证码登录）────────────────────────────────
 const ADMIN_PHONE = process.env.ADMIN_PHONE || '18018844437';
+const OWNER_LICENSE_KEY = (process.env.OWNER_LICENSE_KEY || 'OWNER-LIFETIME-001').trim().toUpperCase();
+const OWNER_UNLIMITED_QUOTA = Number(process.env.OWNER_UNLIMITED_QUOTA || 999999);
 
 if (NODE_ENV === 'production' && !process.env.ADMIN_PHONE) {
   console.warn('[WARN] 建议通过 ADMIN_PHONE 环境变量显式设置管理员手机号');
+}
+
+function isUnlimitedOwner(user: any): boolean {
+  if (!user) return false;
+  const phone = String(user.phone || '').trim();
+  const licenseKey = String(user.license_key || '').trim().toUpperCase();
+  return phone === ADMIN_PHONE || licenseKey === OWNER_LICENSE_KEY;
+}
+
+function withUnlimitedOwnerQuota<T extends Record<string, any> | null>(user: T): T {
+  if (!user || !isUnlimitedOwner(user)) return user;
+  return {
+    ...user,
+    ai_image_quota: OWNER_UNLIMITED_QUOTA,
+    ai_video_quota: OWNER_UNLIMITED_QUOTA,
+    ai_edit_quota: OWNER_UNLIMITED_QUOTA,
+    is_owner_unlimited: true,
+  } as T;
 }
 
 // ── 权限中间件 ────────────────────────────────────────────────────────────────
@@ -455,7 +475,7 @@ app.post('/api/auth/login', (req, res) => {
     clearLoginAttempts(rlKey);
     const token = generateToken();
     userTokens.set(token, user.id);
-    const { password: _, ...userInfo } = user;
+    const { password: _, ...userInfo } = withUnlimitedOwnerQuota(user);
     res.json({ success: true, token, user: userInfo });
   } catch (err: any) {
     res.status(500).json({ error: '登录失败，请稍后重试' });
@@ -488,6 +508,7 @@ app.get('/api/user/info', requireUser, (req: any, res) => {
     if (!user) return res.status(404).json({ error: '用户不存在' });
 
     user = maybeResetQuota(user);
+    user = withUnlimitedOwnerQuota(user);
 
     // 计算到期剩余天数
     let daysLeft = 0;
@@ -606,18 +627,20 @@ app.post('/api/orders/purchase', requireUser, (req: any, res) => {
       quotaResetDate = nowStr;
     }
 
-    // ── 软件授权码：每个账户唯一，首次购买时生成，续费不变 ──────────────────
-    let licenseKey = user.license_key;
-    if (!licenseKey && package_type !== 'ADDON') {
-      // 生成唯一授权码（重试机制保证唯一性）
+    // ── 软件授权码：每次购买/续费/升级都生成全新激活码（方案A），ADDON 保留旧码 ──
+    let licenseKey = user.license_key; // ADDON 情况下保持不变
+    if (package_type !== 'ADDON') {
+      // 每次购买、续费、升级都强制生成新的唯一激活码
+      let newKey: string | null = null;
       let attempts = 0;
-      while (!licenseKey && attempts < 10) {
+      while (!newKey && attempts < 10) {
         const candidate = generateLicenseKey(user.phone);
         const exists = db.prepare('SELECT id FROM users WHERE license_key = ?').get(candidate);
-        if (!exists) licenseKey = candidate;
+        if (!exists) newKey = candidate;
         attempts++;
       }
-      if (!licenseKey) throw new Error('授权码生成失败，请重试');
+      if (!newKey) throw new Error('授权码生成失败，请重试');
+      licenseKey = newKey;
     }
 
     // ── 创建订单 ─────────────────────────────────────────────────────────────
@@ -646,7 +669,7 @@ app.post('/api/orders/purchase', requireUser, (req: any, res) => {
         is_activated     = 1,
         package_type     = ?,
         expire_date      = CASE WHEN ? != 'ADDON' THEN ? ELSE expire_date END,
-        license_key      = COALESCE(license_key, ?),
+        license_key      = CASE WHEN ? != 'ADDON' THEN ? ELSE license_key END,
         ai_image_quota   = CASE WHEN ? != 'ADDON' THEN ? ELSE ai_image_quota END,
         ai_video_quota   = CASE WHEN ? != 'ADDON' THEN ? ELSE ai_video_quota END,
         ai_edit_quota    = CASE WHEN ? != 'ADDON' THEN ? ELSE ai_edit_quota  END,
@@ -656,7 +679,7 @@ app.post('/api/orders/purchase', requireUser, (req: any, res) => {
     `).run(
       newPkgType,
       package_type, expireDateStr,
-      licenseKey,
+      package_type, licenseKey,
       package_type, imageQuota,
       package_type, videoQuota,
       package_type, editQuota,
@@ -753,13 +776,14 @@ app.get('/api/license/quota', (req, res) => {
     if (!key) return res.status(400).json({ error: '缺少授权码' });
 
     let user = db.prepare(
-      'SELECT id, package_type, expire_date, is_activated, ai_image_quota, ai_video_quota, ai_edit_quota, quota_reset_date FROM users WHERE license_key = ?'
+      'SELECT id, phone, license_key, package_type, expire_date, is_activated, ai_image_quota, ai_video_quota, ai_edit_quota, quota_reset_date FROM users WHERE license_key = ?'
     ).get(key) as any;
 
     if (!user || !user.is_activated) return res.status(403).json({ error: '无效授权码' });
 
     // 每月自动重置额度
     user = maybeResetQuota(user);
+    user = withUnlimitedOwnerQuota(user);
 
     const now = new Date();
     if (user.expire_date && new Date(user.expire_date) <= now)
@@ -768,10 +792,11 @@ app.get('/api/license/quota', (req, res) => {
     if (user.package_type !== 'VIP3')
       return res.status(403).json({ error: '该功能需要专业版' });
   
-  res.json({
+    res.json({
       image: user.ai_image_quota ?? 0,
       video: user.ai_video_quota ?? 0,
       edit:  user.ai_edit_quota  ?? 0,
+      unlimited: !!user.is_owner_unlimited,
     });
   } catch (err) {
     res.status(500).json({ error: '查询失败' });
@@ -789,8 +814,8 @@ app.post('/api/license/quota/use', (req, res) => {
     if (!['image', 'video', 'edit'].includes(type))
       return res.status(400).json({ error: 'type 必须为 image/video/edit' });
 
-    const user = db.prepare(
-      'SELECT id, package_type, expire_date, is_activated, ai_image_quota, ai_video_quota, ai_edit_quota FROM users WHERE license_key = ?'
+    let user = db.prepare(
+      'SELECT id, phone, license_key, package_type, expire_date, is_activated, ai_image_quota, ai_video_quota, ai_edit_quota FROM users WHERE license_key = ?'
     ).get(key) as any;
 
     if (!user || !user.is_activated) return res.status(403).json({ error: '无效授权码' });
@@ -799,6 +824,20 @@ app.post('/api/license/quota/use', (req, res) => {
     const now = new Date();
     if (user.expire_date && new Date(user.expire_date) <= now)
       return res.status(403).json({ error: '授权已过期' });
+
+    user = withUnlimitedOwnerQuota(user);
+
+    if (user.is_owner_unlimited) {
+      return res.json({
+        success: true,
+        unlimited: true,
+        remaining: {
+          image: OWNER_UNLIMITED_QUOTA,
+          video: OWNER_UNLIMITED_QUOTA,
+          edit:  OWNER_UNLIMITED_QUOTA,
+        },
+      });
+    }
 
     // 检查余量
     const fieldMap: Record<string, string> = { image: 'ai_image_quota', video: 'ai_video_quota', edit: 'ai_edit_quota' };
@@ -839,8 +878,8 @@ app.post('/api/license/quota/use', (req, res) => {
 // 修改方式：直接改这里的版本号即可，无需重启（热更新时生效）
 const LATEST_DESKTOP_VERSION = {
   version:       '1.0.0',
-  releaseDate:   '2026-03-15',
-  downloadUrl:   '/downloads/星空AI_Setup_1.0.0.exe',
+  releaseDate:   '2026-03-29',
+  downloadUrl:   '/downloads/星空AI Setup 1.0.0.exe',
   releaseNotes:  '首个正式发行版',
   mandatory:     false,   // true = 强制更新，禁止跳过
 };

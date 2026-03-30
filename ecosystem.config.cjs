@@ -16,9 +16,9 @@ module.exports = {
   apps: [
     {
       name: 'nebula-api',
-      // 用 tsx 直接运行 TypeScript（无需预编译）
-      script: 'node_modules/.bin/tsx',
-      args: 'server/index.ts',
+      // Use tsx/cjs register via wrapper to avoid PM2 ESM import issues on Linux
+      script: 'server/start.cjs',
+      interpreter: 'node',
       cwd: './',
 
       // 进程数量：服务器核心数，'max' 表示全部核心

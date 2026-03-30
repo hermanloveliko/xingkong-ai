@@ -28,6 +28,7 @@ interface UserInfo {
   sales_name?: string;
   sales_code?: string;
   license_key?: string;
+  is_owner_unlimited?: boolean;
 }
 
 interface PayingPlan {
@@ -686,7 +687,7 @@ export default function App() {
 function DownloadPage({ user, navigate }: { user: UserInfo | null; navigate: (p: Page) => void }) {
   // 最新版本信息（上线后在此处更新版本号和文件名）
   const VERSION    = '1.0.0';
-  const EXE_FILE   = `星空AI-${VERSION}-x64.exe`;
+  const EXE_FILE   = `星空AI Setup ${VERSION}.exe`;
   const DOWNLOAD_URL = `/downloads/${EXE_FILE}`;
 
   const sysReqs = [
@@ -1242,12 +1243,14 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate, orderRefre
             <div className="mt-4 bg-white/[0.02] rounded-xl border border-white/10 p-5">
               <div className="flex justify-between items-center mb-4">
                 <span className="text-sm font-medium text-white/60">本月 AI 额度</span>
-                <span className="text-xs text-white/30">购买加速包可立即追加次数</span>
+                <span className="text-xs text-white/30">
+                  {user.is_owner_unlimited ? '老板账号已启用无限额度' : '购买加速包可立即追加次数'}
+                </span>
                   </div>
               <div className="grid grid-cols-3 gap-3">
-                <QuotaBar label="AI 生图"  remaining={user.ai_image_quota ?? 0} base={20} color="bg-brand-500" />
-                <QuotaBar label="AI 视频"  remaining={user.ai_video_quota ?? 0} base={15} color="bg-purple-500" />
-                <QuotaBar label="AI 剪辑"  remaining={user.ai_edit_quota  ?? 0} base={15} color="bg-pink-500" />
+                <QuotaBar label="AI 生图"  remaining={user.ai_image_quota ?? 0} base={20} color="bg-brand-500" unlimited={!!user.is_owner_unlimited} />
+                <QuotaBar label="AI 视频"  remaining={user.ai_video_quota ?? 0} base={15} color="bg-purple-500" unlimited={!!user.is_owner_unlimited} />
+                <QuotaBar label="AI 剪辑"  remaining={user.ai_edit_quota  ?? 0} base={15} color="bg-pink-500" unlimited={!!user.is_owner_unlimited} />
                   </div>
                   </div>
           )}
@@ -1731,7 +1734,24 @@ function SalesPage() {
 // ════════════════════════════════════════════════════════════════════════════
 // 通用小组件
 // ════════════════════════════════════════════════════════════════════════════
-function QuotaBar({ label, remaining, base, color }: { label: string; remaining: number; base: number; color: string }) {
+function QuotaBar({ label, remaining, base, color, unlimited = false }: { label: string; remaining: number; base: number; color: string; unlimited?: boolean }) {
+  if (unlimited) {
+    return (
+      <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5">
+        <div className="flex justify-between text-xs mb-2">
+          <span className="text-white/50">{label}</span>
+          <span className="font-semibold text-amber-300">无限</span>
+        </div>
+        <div className="h-1 bg-white/8 rounded-full">
+          <div className={`h-full ${color} rounded-full transition-all`} style={{ width: '100%' }} />
+        </div>
+        <div className="mt-1.5 text-[10px] text-amber-300/80">
+          老板账号专享，不扣减次数
+        </div>
+      </div>
+    );
+  }
+
   const extra    = Math.max(0, remaining - base);
   const baseUsed = Math.max(0, base - Math.min(remaining, base));
   const pct      = base > 0 ? Math.min(100, (baseUsed / base) * 100) : 0;
