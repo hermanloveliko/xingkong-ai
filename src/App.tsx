@@ -243,7 +243,7 @@ export default function App() {
   // 付款弹窗
   const [payingPlan, setPayingPlan]   = useState<PayingPlan | null>(null);
   const [payLoading, setPayLoading]   = useState(false);
-  const [paySuccess, setPaySuccess]   = useState<{ expire_date: string; days_left: number; package_type?: string; addon_code?: string } | null>(null);
+  const [paySuccess, setPaySuccess]   = useState<{ expire_date: string; days_left: number; package_type?: string; addon_code?: string; license_key?: string } | null>(null);
   const [payQrCode, setPayQrCode]     = useState<string | null>(null);
   const [payOrderId, setPayOrderId]   = useState<number | null>(null);
   // 订单刷新触发器（购买成功后 +1，ProfilePage 监听并重新加载订单）
@@ -318,7 +318,7 @@ export default function App() {
       if (payingPlan.isUpgrade) {
         // 升级流程：直接调用升级接口
         const payAmount = payingPlan.finalPrice ?? payingPlan.price;
-        const data = await apiRequest<{ expire_date: string; days_left: number; package_type: string }>(
+        const data = await apiRequest<{ expire_date: string; days_left: number; package_type: string; license_key?: string }>(
           '/orders/upgrade',
           { method: 'POST', body: JSON.stringify({ plan: payingPlan.name, package_type: payingPlan.packageType, months: payingPlan.months, amount: payAmount }) },
           token,
@@ -327,7 +327,7 @@ export default function App() {
       } else {
         // 微信支付流程：检查订单是否已支付
         if (!payOrderId) throw new Error('支付订单创建中，请稍候...');
-        const checkData = await apiRequest<{ paid: boolean; expire_date?: string; days_left?: number; package_type?: string; addon_code?: string }>(
+        const checkData = await apiRequest<{ paid: boolean; expire_date?: string; days_left?: number; package_type?: string; addon_code?: string; license_key?: string }>(
           `/pay/check/${payOrderId}`,
           {},
           token,
@@ -338,6 +338,7 @@ export default function App() {
           days_left: checkData.days_left!,
           package_type: checkData.package_type,
           addon_code: checkData.addon_code,
+          license_key: checkData.license_key,
         });
       }
       await loadUser(token);
@@ -1196,7 +1197,7 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate, orderRefre
                   {copied ? <><Check className="w-4 h-4" />已复制</> : <><Copy className="w-4 h-4" />复制</>}
                       </button>
                   </div>
-              <p className="mt-2 text-xs text-white/25">在桌面软件"激活"界面粘贴此码即可绑定 · 续费后授权码不变，到期时间自动更新</p>
+              <p className="mt-2 text-xs text-white/25">在桌面软件弹出的激活框中粘贴此码即可 · 每次续费/升级后会生成新激活码，请以最新激活码为准</p>
                 </div>
           )}
 
@@ -1337,7 +1338,7 @@ function ProfilePage({ user, token, loadUser, openPayModal, navigate, orderRefre
 // ════════════════════════════════════════════════════════════════════════════
 function PayModal({ plan, loading, success, qrCode, onPay, onClose }: {
   plan: PayingPlan; loading: boolean;
-  success: { expire_date: string; days_left: number; package_type?: string; addon_code?: string } | null;
+  success: { expire_date: string; days_left: number; package_type?: string; addon_code?: string; license_key?: string } | null;
   qrCode?: string | null;
   onPay: () => void; onClose: () => void;
 }) {
@@ -1379,17 +1380,35 @@ function PayModal({ plan, loading, success, qrCode, onPay, onClose }: {
                 <Btn primary full onClick={onClose}>返回个人中心</Btn>
               </>
             ) : (
-              /* 普通套餐购买/升级成功 */
+              /* 普通套餐购买/续费/升级成功 */
               <>
                 <div className="text-6xl mb-4">{plan.isUpgrade ? '🚀' : '🎉'}</div>
-                <h3 className="text-2xl font-bold text-green-400 mb-2">{plan.isUpgrade ? '升级成功！' : '激活成功！'}</h3>
+                <h3 className="text-2xl font-bold text-green-400 mb-2">{plan.isUpgrade ? '升级成功！' : '购买成功！'}</h3>
                 {plan.isUpgrade && (
                   <div className="mb-4 px-4 py-3 bg-yellow-500/10 rounded-xl text-sm text-yellow-400">✨ 已解锁：AI 营销工坊 · 经营分析 · 财务报税</div>
                 )}
                 <p className="text-white/50 text-sm mb-1">套餐：{success.package_type === 'VIP3' ? '专业版' : plan.name}</p>
-                <p className="text-white/50 text-sm mb-2">到期时间：{new Date(success.expire_date).toLocaleDateString('zh-CN')}</p>
-                <p className="text-green-400 text-xl font-bold mb-6">剩余 {success.days_left} 天</p>
-                <p className="text-white/25 text-xs mb-5">重启桌面软件后，新功能将自动解锁</p>
+                <p className="text-white/50 text-sm mb-1">到期时间：{new Date(success.expire_date).toLocaleDateString('zh-CN')}</p>
+                <p className="text-green-400 text-lg font-bold mb-4">剩余 {success.days_left} 天</p>
+                {/* 激活码展示（方案A：每次购买都生成新码） */}
+                {success.license_key && (
+                  <div className="bg-black/40 border border-brand-500/40 rounded-xl p-4 mb-4 text-left">
+                    <p className="text-white/40 text-xs mb-2">🔑 桌面软件激活码（新）</p>
+                    <p className="text-brand-300 text-base font-bold font-mono tracking-widest mb-3 select-all">{success.license_key}</p>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(success.license_key!); setCodeCopied(true); setTimeout(() => setCodeCopied(false), 2000); }}
+                      className="px-4 py-2 bg-brand-500/20 hover:bg-brand-500/30 border border-brand-500/40 rounded-lg text-brand-300 text-sm font-semibold transition-colors"
+                    >
+                      {codeCopied ? '✓ 已复制' : '复制激活码'}
+                    </button>
+                  </div>
+                )}
+                <div className="text-left bg-white/[0.03] rounded-xl p-3 mb-4 text-sm text-white/50 space-y-1">
+                  <p>💡 激活步骤：</p>
+                  <p>1. 复制以上激活码</p>
+                  <p>2. 打开桌面软件 → 在弹出的激活框中粘贴激活码</p>
+                  <p>3. 点击「立即激活」，功能即刻解锁</p>
+                </div>
                 <Btn primary full onClick={onClose}>返回个人中心</Btn>
               </>
             )}
@@ -1397,7 +1416,7 @@ function PayModal({ plan, loading, success, qrCode, onPay, onClose }: {
         ) : (
           <>
             <h3 className="text-xl font-bold mb-1">{plan.isUpgrade ? '⚡ 升级专业版' : '确认购买'}</h3>
-            <p className="text-white/40 text-sm mb-5">{plan.isUpgrade ? '付款成功后立即升级，桌面软件重启后自动解锁新功能' : '扫码完成付款后，账户将立即激活'}</p>
+            <p className="text-white/40 text-sm mb-5">{plan.isUpgrade ? '付款成功后立即获得激活码，在桌面软件的升级弹窗中输入即可立即解锁（无需重启）' : '扫码完成付款后，账户将立即激活'}</p>
 
             <div className="bg-white/[0.03] rounded-xl p-4 mb-5 space-y-2.5">
               <Row label="套餐"  value={plan.isUpgrade ? '专业版' : plan.name} />
