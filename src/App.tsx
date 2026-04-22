@@ -659,17 +659,23 @@ export default function App() {
 
       {/* Footer */}
       <footer className="py-12 px-6 border-t border-white/5">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-3">
-            <LogoNA className="w-8 h-8" />
-            <span className="text-sm font-medium">星空AI · 智能门店经营助手</span>
-                  </div>
-          <div className="flex gap-6 text-xs text-white/30">
-            <a href="#" className="hover:text-white">隐私政策</a>
-            <a href="#" className="hover:text-white">服务条款</a>
-            <a href="#" className="hover:text-white">联系我们</a>
-                      </div>
-                    </div>
+        <div className="max-w-6xl mx-auto flex flex-col gap-3">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-3">
+              <LogoNA className="w-8 h-8" />
+              <span className="text-sm font-medium">星空AI · 智能门店经营助手</span>
+            </div>
+            <div className="flex gap-6 text-xs text-white/30">
+              <a href="#" className="hover:text-white">隐私政策</a>
+              <a href="#" className="hover:text-white">服务条款</a>
+              <a href="#" className="hover:text-white">联系我们</a>
+            </div>
+          </div>
+
+          <div className="text-center text-xs text-white/30">
+            沪ICP备2024099147号-4&nbsp;&nbsp;&nbsp;地址：上海市松江区109号&nbsp;&nbsp;&nbsp;电话：021-57811626
+          </div>
+        </div>
       </footer>
 
       {/* 付款弹窗 */}
