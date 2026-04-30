@@ -673,7 +673,7 @@ export default function App() {
           </div>
 
           <div className="text-center text-xs text-white/30">
-            沪ICP备2024099147号-4&nbsp;&nbsp;&nbsp;地址：上海市松江区109号&nbsp;&nbsp;&nbsp;电话：021-57811626
+            沪ICP备2024099147号-4&nbsp;&nbsp;&nbsp;地址：上海市青浦区业文路189弄29号&nbsp;&nbsp;&nbsp;电话：021-57811626
           </div>
         </div>
       </footer>
